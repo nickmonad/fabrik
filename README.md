@@ -1,9 +1,11 @@
 build
 -----
 
+Serverless CI/CD
+
 ## Configure
 
-`~/.aws/credentials`
+Add an `opolis` profile to `~/.aws/credentials`
 
 ```
 [opolis]
@@ -13,11 +15,20 @@ region = us-west-2
 output = json
 ```
 
-## Deploy Lambda Bucket
+## Install
 
-```
-aws --profile opolis \
-    cloudformation create-stack \
-    --stack-name opolis-build-lambda \
-    --template-body file://deploy.json
-```
+Build the development Docker image
+
+`$ make image`
+
+## Build
+
+Build each Lambda function
+
+`$ make build`
+
+## Deploy
+
+Deploy to Lambda and API Gateway
+
+`$ make deploy`

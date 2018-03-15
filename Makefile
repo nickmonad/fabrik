@@ -23,6 +23,10 @@ build:
 deploy:
 	@$(RUN) serverless deploy
 
+.PHONY: update
+update: build
+	@$(RUN) serverless deploy function -f build
+
 .PHONY: shell
 shell:
 	@$(RUN) sh
