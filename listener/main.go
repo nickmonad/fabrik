@@ -1,11 +1,16 @@
 package main
 
 import (
-	"encoding/base64"
-	"encoding/json"
+	"crypto/hmac"
+	"crypto/sha1"
+	"crypto/sha256"
+	"crypto/sha512"
+	"encoding/hex"
+	"errors"
 	"fmt"
-	"io/ioutil"
+	"hash"
 	"net/http"
+	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -15,68 +20,28 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm"
 )
 
-// Repository provides a means to fetch data from
-// the version control repository.
-type Repository interface {
-	Get(ref string, path string) ([]byte, error)
-}
+const (
+	// sha1Prefix is the prefix used by GitHub before the HMAC hexdigest.
+	sha1Prefix = "sha1"
+	// sha256Prefix and sha512Prefix are provided for future compatibility.
+	sha256Prefix = "sha256"
+	sha512Prefix = "sha512"
 
-type GitHubRepository struct {
-	client *http.Client
-	base   string
-	token  string
-	owner  string
-	name   string
-}
+	signatureHeader = "X-Hub-Signature"
+	eventHeader     = "X-GitHub-Event"
+)
 
-func NewGitHubRepository(owner, name, token string) *GitHubRepository {
-	return &GitHubRepository{
-		client: http.DefaultClient,
-		base:   "https://api.github.com",
-		token:  token,
-		owner:  owner,
-		name:   name,
-	}
-}
-
-func (repo *GitHubRepository) Get(ref, path string) ([]byte, error) {
-	url := fmt.Sprintf(
-		"%s/repos/%s/%s/contents/%s?ref=%s",
-		repo.base, repo.owner, repo.name, path, ref,
-	)
-
-	fmt.Println("url: ", url)
-
-	request, err := http.NewRequest("GET", url, nil)
+func Validate(sig string, payload, key []byte) error {
+	messageMAC, hashFunc, err := messageMAC(sig)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	request.Header.Set("Authorization", fmt.Sprintf("token %s", repo.token))
-
-	// make request
-	resp, err := repo.client.Do(request)
-	if err != nil {
-		fmt.Println("error making request")
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	// read json
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Println("error reading body")
-		return nil, err
+	if !checkMAC(payload, messageMAC, key, hashFunc) {
+		return errors.New("signature check failed")
 	}
 
-	// decode base64 content
-	var parsed map[string]interface{}
-	if err := json.Unmarshal(body, &parsed); err != nil {
-		fmt.Println("error decoding json")
-		return nil, err
-	}
-
-	return base64.StdEncoding.DecodeString(parsed["content"].(string))
+	return nil
 }
 
 func Handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -84,26 +49,79 @@ func Handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	sess := session.Must(session.NewSession(&aws.Config{Region: aws.String(endpoints.UsWest2RegionID)}))
 	svc := ssm.New(sess)
 
-	// Get secure token
-	token, err := svc.GetParameter(&ssm.GetParameterInput{
-		Name: aws.String("opolis-build-token"), WithDecryption: aws.Bool(true)})
+	// Validate request with HMAC key
+	hmacKey, err := svc.GetParameter(&ssm.GetParameterInput{
+		Name: aws.String("opolis-build-hmac"), WithDecryption: aws.Bool(true)})
 
 	if err != nil {
-		fmt.Println(err.Error())
-		return events.APIGatewayProxyResponse{Body: "could not get token", StatusCode: 500}, nil
+		fmt.Println("could not read hmac key: ", err.Error())
+		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, nil
 	}
 
-	// GitHub Session
-	repo := NewGitHubRepository("opolis", "build", *(token.Parameter.Value))
-	data, err := repo.Get("working", "Dockerfile")
+	signature := request.Headers[signatureHeader]
+	err = Validate(signature, []byte(request.Body), []byte(*(hmacKey.Parameter.Value)))
 	if err != nil {
 		fmt.Println(err.Error())
-		return events.APIGatewayProxyResponse{Body: "could not fetch content", StatusCode: 500}, nil
+		return events.APIGatewayProxyResponse{StatusCode: http.StatusUnauthorized}, nil
 	}
 
-	return events.APIGatewayProxyResponse{Body: string(data), StatusCode: 200}, nil
+	fmt.Println("Got Event: ", request.Headers[eventHeader])
+	return events.APIGatewayProxyResponse{Body: "ok", StatusCode: 200}, nil
 }
 
 func main() {
 	lambda.Start(Handler)
+}
+
+//
+// HMAC Helpers
+// Shamelessly stolen from google/go-github's source.
+// Their `ValidatePayload` function expects an incoming http.Request,
+// whereas we have API Gateway requests.
+//
+
+// genMAC generates the HMAC signature for a message provided
+// the secret key and hashFunc.
+func genMAC(message, key []byte, hashFunc func() hash.Hash) []byte {
+	mac := hmac.New(hashFunc, key)
+	mac.Write(message)
+	return mac.Sum(nil)
+}
+
+// checkMAC reports whether messageMAC is a valid HMAC tag for message.
+func checkMAC(message, messageMAC, key []byte, hashFunc func() hash.Hash) bool {
+	expectedMAC := genMAC(message, key, hashFunc)
+	return hmac.Equal(messageMAC, expectedMAC)
+}
+
+// messageMAC returns the hex-decoded HMAC tag from the signature and its
+// corresponding hash function.
+func messageMAC(signature string) ([]byte, func() hash.Hash, error) {
+	if signature == "" {
+		return nil, nil, errors.New("missing signature")
+	}
+
+	sigParts := strings.SplitN(signature, "=", 2)
+	if len(sigParts) != 2 {
+		return nil, nil, fmt.Errorf("error parsing signature %q", signature)
+	}
+
+	var hashFunc func() hash.Hash
+	switch sigParts[0] {
+	case sha1Prefix:
+		hashFunc = sha1.New
+	case sha256Prefix:
+		hashFunc = sha256.New
+	case sha512Prefix:
+		hashFunc = sha512.New
+	default:
+		return nil, nil, fmt.Errorf("unknown hash type prefix: %q", sigParts[0])
+	}
+
+	buf, err := hex.DecodeString(sigParts[1])
+	if err != nil {
+		return nil, nil, fmt.Errorf("error decoding signature %q: %v", signature, err)
+	}
+
+	return buf, hashFunc, nil
 }
