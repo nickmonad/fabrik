@@ -31,6 +31,8 @@ const (
 	eventHeader     = "X-GitHub-Event"
 )
 
+// Validate returns an error if the signature does not match
+// the payload. Returns nil if signature check is successful.
 func Validate(sig string, payload, key []byte) error {
 	messageMAC, hashFunc, err := messageMAC(sig)
 	if err != nil {
@@ -44,6 +46,8 @@ func Validate(sig string, payload, key []byte) error {
 	return nil
 }
 
+// Handler captures the incoming webhook from GitHub, verifies its integrity with HMAC,
+// and pushes the event onto a queue for processing.
 func Handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	// AWS Session
 	sess := session.Must(session.NewSession(&aws.Config{Region: aws.String(endpoints.UsWest2RegionID)}))
