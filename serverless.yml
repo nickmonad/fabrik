@@ -21,10 +21,10 @@ functions:
         timeout: 10
         events:
             - http:
-                path: build
+                path: event
                 method: post
-    build:
-        handler: bin/build
+    builder:
+        handler: bin/builder
         memorySize: 128
         timeout: 10
 

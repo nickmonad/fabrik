@@ -17,7 +17,7 @@ image:
 .PHONY: build
 build:
 	@$(RUN) dep ensure
-	@$(RUN) $(COMPILE) -o bin/build build/main.go
+	@$(RUN) $(COMPILE) -o bin/builder builder/main.go
 	@$(RUN) $(COMPILE) -o bin/listener listener/main.go
 
 .PHONY: deploy
