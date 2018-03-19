@@ -19,6 +19,9 @@ functions:
         handler: bin/listener
         memorySize: 128
         timeout: 10
+        environment:
+            EVENT_TABLE:
+                Ref: dynamoTable
         events:
             - http:
                 path: event
@@ -26,10 +29,31 @@ functions:
     builder:
         handler: bin/builder
         memorySize: 128
-        timeout: 10
+        timeout: 300
+        events:
+            - stream:
+                type: dynamodb
+                arn:
+                    Fn::GetAtt:
+                      - dynamoTable
+                      - StreamArn
 
 resources:
     Resources:
+        dynamoTable:
+            Type: AWS::DynamoDB::Table
+            Properties:
+                AttributeDefinitions:
+                - AttributeName: id
+                  AttributeType: S
+                KeySchema:
+                - AttributeName: id
+                  KeyType: HASH
+                ProvisionedThroughput:
+                    ReadCapacityUnits: 5
+                    WriteCapacityUnits: 5
+                StreamSpecification:
+                    StreamViewType: NEW_IMAGE
         lambdaRole:
             Type: AWS::IAM::Role
             Properties:
@@ -66,9 +90,14 @@ resources:
                             Resource:
                                 - "arn:aws:kms:*:*:key/344d9fba-07d2-45c8-9bde-2356aaedc6c3"
                           - Effect: "Allow"
-                            Action: "s3:PutObject"
+                            Action: "dynamodb:*"
                             Resource:
                                 - "Fn::Join":
-                                    - ""
-                                    - - "arn:aws:s3:::"
-                                      - "Ref": "ServerlessDeploymentBucket"
+                                    - "/"
+                                    - - "arn:aws:dynamodb:*:*:table"
+                                      - "Ref": "dynamoTable"
+                                - "Fn::Join":
+                                    - "/"
+                                    - - "arn:aws:dynamodb:*:*:table"
+                                      - "Ref": "dynamoTable"
+                                      - "stream/*"

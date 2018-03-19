@@ -14,9 +14,12 @@ COMPILE = env GOOS=linux go build -ldflags="-s -w"
 image:
 	@docker build -t $(IMAGE) .
 
+.PHONY: deps
+deps:
+	@$(RUN) dep ensure
+
 .PHONY: build
 build:
-	@$(RUN) dep ensure
 	@$(RUN) $(COMPILE) -o bin/builder builder/main.go
 	@$(RUN) $(COMPILE) -o bin/listener listener/main.go
 

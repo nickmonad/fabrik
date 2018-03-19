@@ -1,22 +1,28 @@
 package main
 
 import (
+	"bytes"
 	"crypto/hmac"
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"hash"
 	"net/http"
+	"os"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/ssm"
 )
 
@@ -26,10 +32,76 @@ const (
 	// sha256Prefix and sha512Prefix are provided for future compatibility.
 	sha256Prefix = "sha256"
 	sha512Prefix = "sha512"
-
+	// HTTP request headers
 	signatureHeader = "X-Hub-Signature"
+	deliveryHeader  = "X-GitHub-Delivery"
 	eventHeader     = "X-GitHub-Event"
 )
+
+func main() {
+	lambda.Start(Handler)
+}
+
+// Handler captures the incoming webhook from GitHub, verifies its integrity with HMAC,
+// and pushes the event onto a queue for processing.
+func Handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	// AWS session
+	sess := session.Must(session.NewSession(
+		&aws.Config{Region: aws.String(endpoints.UsWest2RegionID)}))
+
+	ssmService := ssm.New(sess)
+
+	// Get HMAC key
+	hmacKey, err := ssmService.GetParameter(&ssm.GetParameterInput{
+		Name: aws.String("opolis-build-hmac"), WithDecryption: aws.Bool(true)})
+
+	if err != nil {
+		fmt.Println("could not read hmac key: ", err.Error())
+		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, nil
+	}
+
+	// Validate the request
+	signature := request.Headers[signatureHeader]
+	err = Validate(signature, []byte(request.Body), []byte(*(hmacKey.Parameter.Value)))
+	if err != nil {
+		fmt.Println(err.Error())
+		return events.APIGatewayProxyResponse{StatusCode: http.StatusUnauthorized}, nil
+	}
+
+	// Push event into dynamo for further processing
+	id := request.Headers[deliveryHeader]
+	payload := request.Body
+	item := EventItem(os.Getenv("EVENT_TABLE"), id, payload)
+
+	dbService := dynamodb.New(sess)
+	_, err = dbService.PutItem(item)
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case dynamodb.ErrCodeConditionalCheckFailedException:
+				fmt.Println(dynamodb.ErrCodeConditionalCheckFailedException, aerr.Error())
+			case dynamodb.ErrCodeProvisionedThroughputExceededException:
+				fmt.Println(dynamodb.ErrCodeProvisionedThroughputExceededException, aerr.Error())
+			case dynamodb.ErrCodeResourceNotFoundException:
+				fmt.Println(dynamodb.ErrCodeResourceNotFoundException, aerr.Error())
+			case dynamodb.ErrCodeItemCollectionSizeLimitExceededException:
+				fmt.Println(dynamodb.ErrCodeItemCollectionSizeLimitExceededException, aerr.Error())
+			case dynamodb.ErrCodeInternalServerError:
+				fmt.Println(dynamodb.ErrCodeInternalServerError, aerr.Error())
+			default:
+				fmt.Println(aerr.Error())
+			}
+		} else {
+			// Print the error, cast err to awserr.Error to get the Code and
+			// Message from an error.
+			fmt.Println(err.Error())
+		}
+
+		return events.APIGatewayProxyResponse{Body: "event write error", StatusCode: 500}, nil
+	}
+
+	return events.APIGatewayProxyResponse{Body: "ok", StatusCode: 200}, nil
+}
 
 // Validate returns an error if the signature does not match
 // the payload. Returns nil if signature check is successful.
@@ -46,35 +118,25 @@ func Validate(sig string, payload, key []byte) error {
 	return nil
 }
 
-// Handler captures the incoming webhook from GitHub, verifies its integrity with HMAC,
-// and pushes the event onto a queue for processing.
-func Handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	// AWS Session
-	sess := session.Must(session.NewSession(&aws.Config{Region: aws.String(endpoints.UsWest2RegionID)}))
-	svc := ssm.New(sess)
-
-	// Validate request with HMAC key
-	hmacKey, err := svc.GetParameter(&ssm.GetParameterInput{
-		Name: aws.String("opolis-build-hmac"), WithDecryption: aws.Bool(true)})
-
-	if err != nil {
-		fmt.Println("could not read hmac key: ", err.Error())
-		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, nil
+func EventItem(table, id, payload string) *dynamodb.PutItemInput {
+	// trim json payload
+	var p string
+	buf := new(bytes.Buffer)
+	if err := json.Compact(buf, []byte(payload)); err != nil {
+		// pass through, no trim
+		p = payload
+	} else {
+		p = buf.String()
 	}
 
-	signature := request.Headers[signatureHeader]
-	err = Validate(signature, []byte(request.Body), []byte(*(hmacKey.Parameter.Value)))
-	if err != nil {
-		fmt.Println(err.Error())
-		return events.APIGatewayProxyResponse{StatusCode: http.StatusUnauthorized}, nil
+	return &dynamodb.PutItemInput{
+		TableName: aws.String(table),
+		Item: map[string]*dynamodb.AttributeValue{
+			"id":        {S: aws.String(id)},
+			"timestamp": {S: aws.String(time.Now().String())},
+			"payload":   {S: aws.String(p)},
+		},
 	}
-
-	fmt.Println("Got Event: ", request.Headers[eventHeader])
-	return events.APIGatewayProxyResponse{Body: "ok", StatusCode: 200}, nil
-}
-
-func main() {
-	lambda.Start(Handler)
 }
 
 //
