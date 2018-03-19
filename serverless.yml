@@ -1,24 +1,73 @@
 service: opolis-build
 
 provider:
-  name: aws
-  runtime: go1.x
-  profile: opolis
-  region: us-west-2
-  stage: dev
+    name: aws
+    runtime: go1.x
+    profile: opolis
+    region: us-west-2
+    stage: dev
+    role: defaultRole
 
 package:
- exclude:
-   - ./**
- include:
-   - ./bin/**
+    exclude:
+        - ./**
+    include:
+        - ./bin/**
 
 functions:
-  build:
-    handler: bin/build
-    memorySize: 128
-    timeout: 10
-    events:
-      - http:
-          path: build
-          method: post
+    listener:
+        handler: bin/listener
+        memorySize: 128
+        timeout: 10
+        events:
+            - http:
+                path: build
+                method: post
+    build:
+        handler: bin/build
+        memorySize: 128
+        timeout: 10
+
+resources:
+    Resources:
+        defaultRole:
+            Type: AWS::IAM::Role
+            Properties:
+                Path: "/"
+                RoleName: opolis-build-lambda-role
+                AssumeRolePolicyDocument:
+                    Version: '2012-10-17'
+                    Statement:
+                    - Effect: Allow
+                      Principal:
+                        Service:
+                        - lambda.amazonaws.com
+                      Action:
+                        - sts:AssumeRole
+                Policies:
+                    - PolicyName: root
+                      PolicyDocument:
+                          Version: '2012-10-17'
+                          Statement:
+                          - Effect: Allow
+                            Action:
+                              - logs:CreateLogGroup
+                              - logs:CreateLogStream
+                              - logs:PutLogEvents
+                            Resource:
+                                - 'Fn::Sub': "arn:aws:logs:*:*:log-group:/aws/lambda/*:*:*"
+                          - Effect: "Allow"
+                            Action: 'ssm:GetParameter'
+                            Resource:
+                                - 'Fn::Sub': "arn:aws:ssm:*:*:parameter/opolis-build-token"
+                          - Effect: "Allow"
+                            Action: "kms:Decrypt"
+                            Resource:
+                                - 'Fn::Sub': "arn:aws:kms:*:*:key/344d9fba-07d2-45c8-9bde-2356aaedc6c3"
+                          - Effect: "Allow"
+                            Action: "s3:PutObject"
+                            Resource:
+                                - "Fn::Join":
+                                    - ""
+                                    - - "arn:aws:s3:::"
+                                      - "Ref": "ServerlessDeploymentBucket"

@@ -4,8 +4,11 @@ GOPATH = /go/src/github.com/opolis/build
 RUN = docker run -it --rm \
 	  -v $(HOME)/.aws:/root/.aws \
 	  -v $(PWD):$(GOPATH) \
+	  -v $(PWD)/.cache:/root/.cache/go-build \
 	  -w $(GOPATH) \
 	  $(IMAGE)
+
+COMPILE = env GOOS=linux go build -ldflags="-s -w"
 
 .PHONY: image
 image:
@@ -14,10 +17,8 @@ image:
 .PHONY: build
 build:
 	@$(RUN) dep ensure
-	@$(RUN) env GOOS=linux go build \
-		-ldflags="-d -s -w" -a -tags netgo \
-		-installsuffix netgo \
-		-o bin/build build/main.go
+	@$(RUN) $(COMPILE) -o bin/build build/main.go
+	@$(RUN) $(COMPILE) -o bin/listener listener/main.go
 
 .PHONY: deploy
 deploy:
