@@ -4,9 +4,11 @@ provider:
     name: aws
     runtime: go1.x
     profile: opolis
-    region: us-west-2
-    stage: dev
-    role: lambdaRole
+    region: ${opt:region, self:custom.defaultRegion}
+    stage: ${opt:stage}
+
+custom:
+    defaultRegion: us-west-2
 
 package:
     exclude:
@@ -19,7 +21,9 @@ functions:
         handler: bin/listener
         memorySize: 128
         timeout: 10
+        role: lambdaRole
         environment:
+            AWS_REGION: ${self:provider.region}
             EVENT_TABLE:
                 Ref: dynamoTable
         events:
@@ -30,6 +34,9 @@ functions:
         handler: bin/builder
         memorySize: 128
         timeout: 300
+        role: lambdaAllRole
+        environment:
+            AWS_REGION: ${self:provider.region}
         events:
             - stream:
                 type: dynamodb
@@ -54,6 +61,28 @@ resources:
                     WriteCapacityUnits: 5
                 StreamSpecification:
                     StreamViewType: NEW_IMAGE
+        lambdaAllRole:
+            Type: AWS::IAM::Role
+            Properties:
+                Path: "/"
+                RoleName: opolis-build-lambda-all
+                AssumeRolePolicyDocument:
+                    Version: '2012-10-17'
+                    Statement:
+                    - Effect: Allow
+                      Principal:
+                        Service:
+                        - lambda.amazonaws.com
+                      Action:
+                        - sts:AssumeRole
+                Policies:
+                    - PolicyName: root
+                      PolicyDocument:
+                          Version: '2012-10-17'
+                          Statement:
+                          - Effect: Allow
+                            Action: *
+                            Resource: *
         lambdaRole:
             Type: AWS::IAM::Role
             Properties:

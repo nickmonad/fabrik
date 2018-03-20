@@ -22,7 +22,6 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 )
@@ -47,8 +46,7 @@ func main() {
 // and pushes the event onto a queue for processing.
 func Handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	// AWS session
-	sess := session.Must(session.NewSession(
-		&aws.Config{Region: aws.String(endpoints.UsWest2RegionID)}))
+	sess := session.Must(session.NewSession())
 
 	// Get HMAC key
 	parameter := parameters.NewAWSParameterStore(sess)
@@ -68,8 +66,9 @@ func Handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	// Push event into dynamo for further processing
 	id := request.Headers[deliveryHeader]
+	eventType := request.Headers[eventHeader]
 	payload := request.Body
-	item := EventItem(os.Getenv("EVENT_TABLE"), id, payload)
+	item := EventItem(os.Getenv("EVENT_TABLE"), id, eventType, payload)
 
 	dbService := dynamodb.New(sess)
 	_, err = dbService.PutItem(item)
@@ -116,7 +115,7 @@ func Validate(sig string, payload, key []byte) error {
 	return nil
 }
 
-func EventItem(table, id, payload string) *dynamodb.PutItemInput {
+func EventItem(table, id, eventType, payload string) *dynamodb.PutItemInput {
 	// trim json payload
 	var p string
 	buf := new(bytes.Buffer)
@@ -131,6 +130,7 @@ func EventItem(table, id, payload string) *dynamodb.PutItemInput {
 		TableName: aws.String(table),
 		Item: map[string]*dynamodb.AttributeValue{
 			"id":        {S: aws.String(id)},
+			"type":      {S: aws.String(eventType)},
 			"timestamp": {S: aws.String(time.Now().String())},
 			"payload":   {S: aws.String(p)},
 		},
