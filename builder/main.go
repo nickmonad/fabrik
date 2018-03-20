@@ -106,15 +106,15 @@ func Process(event types.GitHubEvent, repo types.Repository, stackManager types.
 	// fetch stack and parameter files from repoistory
 	// pipeline.json - CI/CD pipeline stack spec
 	// parameters.json - stack parameters
-	_, err := repo.Get(event.Ref, "pipeline.json")
-	if err != nil {
-		return err
-	}
+	// pipelineTemplate, err := repo.Get(event.Ref, "pipeline.json")
+	// if err != nil {
+	// 	return err
+	// }
 
-	_, err = repo.Get(event.Ref, "parameters.json")
-	if err != nil {
-		return err
-	}
+	// parameterSpec, err := repo.Get(event.Ref, "parameters.json")
+	// if err != nil {
+	// 	return err
+	// }
 
 	stack := stackPipeline(event.Repository.Name, event.Ref)
 	exists, status, err := stackManager.Exists(stack)

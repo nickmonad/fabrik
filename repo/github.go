@@ -3,6 +3,7 @@ package repo
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -32,7 +33,7 @@ func (repo *GitHubRepository) Get(ref, path string) ([]byte, error) {
 		repo.base, repo.owner, repo.name, path, ref,
 	)
 
-	fmt.Println("url: ", url)
+	fmt.Println("requesting: ", url)
 
 	request, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -44,10 +45,14 @@ func (repo *GitHubRepository) Get(ref, path string) ([]byte, error) {
 	// make request
 	resp, err := repo.client.Do(request)
 	if err != nil {
-		fmt.Println("error making request")
-		return nil, err
+		return nil, errors.New(fmt.Sprintf("error making request: %s", err.Error()))
 	}
 	defer resp.Body.Close()
+
+	// return error for non-200 status code
+	if resp.StatusCode != http.StatusOK {
+		return nil, errors.New(fmt.Sprintf("error fetching %s: %s", path, resp.Status))
+	}
 
 	// read json
 	body, err := ioutil.ReadAll(resp.Body)
