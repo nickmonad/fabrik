@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/opolis/build/parameters"
 	"github.com/opolis/build/repo"
@@ -128,5 +129,10 @@ func Process(event types.GitHubEvent, repo types.Repository, stackManager types.
 //
 
 func stackPipeline(repo, ref string) string {
-	return fmt.Sprintf("opolis-build-%s-%s-pipeline", repo, ref)
+	return fmt.Sprintf("opolis-build-%s-%s-pipeline", repo, parseRef(ref))
+}
+
+func parseRef(ref string) string {
+	components := strings.Split(ref, "/")
+	return components[len(components)-1]
 }
