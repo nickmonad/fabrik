@@ -3,6 +3,7 @@ package stack
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/opolis/build/types"
 
@@ -87,12 +88,18 @@ func (m *AWSStackManager) Exists(name string) (bool, string, error) {
 		StackName: aws.String(name),
 	})
 
+	// janky solution to determining if stack does not exist,
+	// AWS docs on exactly _what_ err this should be when the stack isn't found sucks
+	if strings.Contains(err.Error(), "does not exist") {
+		return false, "", nil
+	}
+
 	if err != nil {
 		return false, "ERROR", err
 	}
 
 	if len(response.Stacks) == 0 {
-		return false, "DOES_NOT_EXIST", nil
+		return false, "", nil
 	}
 
 	return true, *(response.Stacks[0].StackStatus), nil

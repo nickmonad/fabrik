@@ -117,9 +117,9 @@ func Process(event types.GitHubEvent, repo types.Repository, stackManager types.
 	// 	return err
 	// }
 
+	// create or update stack with (TODO) ref specific parameters
 	stack := stackPipeline(event.Repository.Name, event.Ref)
-	exists, status, err := stackManager.Exists(stack)
-	fmt.Println(exists, status, err)
+	fmt.Println(stackManager.Exists(stack))
 
 	return nil
 }
