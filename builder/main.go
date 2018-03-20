@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/opolis/build/types"
+
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 )
@@ -16,36 +18,15 @@ func main() {
 	lambda.Start(Handler)
 }
 
-// Repository provides a means to fetch data from
-// the version control repository.
-type Repository interface {
-	Get(ref string, path string) ([]byte, error)
-}
-
-// Pipeline provides a means to manage
-type Pipeline interface {
-	Create()
-	Delete()
-}
-
-// GitHubEvent
-type GitHubEvent struct {
-	Ref        string `json:"ref"`
-	Repository struct {
-		Name string `json:"name"`
-	} `json:"repository"`
-}
-
 // Handler serves as the integration point between the AWS event and business logic by
 // preparing conrete types to satisfy the Handler's interface.
 func Handler(event events.DynamoDBEvent) error {
 	for _, record := range event.Records {
-		fmt.Println("Got Event ", record.EventName, " from ", record.EventSource)
-
+		// parse github event
 		item := record.Change.NewImage
 		rawEvent := []byte(item["payload"].String())
 
-		var event GitHubEvent
+		var event types.GitHubEvent
 		if err := json.Unmarshal(rawEvent, &event); err != nil {
 			fmt.Println("error: json.Unmarshal ", err.Error())
 			return nil
@@ -81,7 +62,7 @@ func Handler(event events.DynamoDBEvent) error {
 //     if tag: call UpdatePipeline with tag
 //     call StartPipeline
 //
-func Process(eventrepo Repository) error {
+func Process(event types.GitHubEvent, repo types.Repository, pipeline types.Pipeline) error {
 
 	return nil
 }

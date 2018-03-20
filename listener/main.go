@@ -16,6 +16,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/opolis/build/parameters"
+
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
@@ -23,7 +25,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/ssm"
 )
 
 const (
@@ -49,12 +50,9 @@ func Handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	sess := session.Must(session.NewSession(
 		&aws.Config{Region: aws.String(endpoints.UsWest2RegionID)}))
 
-	ssmService := ssm.New(sess)
-
 	// Get HMAC key
-	hmacKey, err := ssmService.GetParameter(&ssm.GetParameterInput{
-		Name: aws.String("opolis-build-hmac"), WithDecryption: aws.Bool(true)})
-
+	parameter := parameters.NewAWSParameterStore(sess)
+	hmacKey, err := parameter.Get("opolis-build-hmac")
 	if err != nil {
 		fmt.Println("could not read hmac key: ", err.Error())
 		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, nil
@@ -62,7 +60,7 @@ func Handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	// Validate the request
 	signature := request.Headers[signatureHeader]
-	err = Validate(signature, []byte(request.Body), []byte(*(hmacKey.Parameter.Value)))
+	err = Validate(signature, []byte(request.Body), []byte(hmacKey))
 	if err != nil {
 		fmt.Println(err.Error())
 		return events.APIGatewayProxyResponse{StatusCode: http.StatusUnauthorized}, nil
