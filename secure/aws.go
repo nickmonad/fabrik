@@ -1,4 +1,4 @@
-package parameters
+package secure
 
 import (
 	"github.com/aws/aws-sdk-go/aws"
@@ -6,17 +6,17 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm"
 )
 
-type AWSParameterStore struct {
+type AWSSecureStore struct {
 	client *ssm.SSM
 }
 
-func NewAWSParameterStore(session *session.Session) *AWSParameterStore {
-	return &AWSParameterStore{
+func NewAWSSecureStore(session *session.Session) *AWSSecureStore {
+	return &AWSSecureStore{
 		client: ssm.New(session),
 	}
 }
 
-func (store *AWSParameterStore) Get(key string) (string, error) {
+func (store *AWSSecureStore) Get(key string) (string, error) {
 	resp, err := store.client.GetParameter(&ssm.GetParameterInput{
 		Name: aws.String(key), WithDecryption: aws.Bool(true)})
 

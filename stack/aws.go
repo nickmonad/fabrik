@@ -1,7 +1,6 @@
 package stack
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -22,12 +21,7 @@ func NewAWSStackManger(session *session.Session) *AWSStackManager {
 	}
 }
 
-func (m *AWSStackManager) Create(name string, template, parameters []byte) error {
-	params, err := parseParameters(parameters)
-	if err != nil {
-		return err
-	}
-
+func (m *AWSStackManager) Create(name string, parameters []types.Parameter, template []byte) error {
 	response, err := m.client.CreateStack(&cloudformation.CreateStackInput{
 		// Set IAM capabilities
 		Capabilities: aws.StringSlice([]string{"CAPABILITY_IAM", "CAPABILITY_NAMED_IAM"}),
@@ -35,7 +29,7 @@ func (m *AWSStackManager) Create(name string, template, parameters []byte) error
 		// which are open to all actions
 		StackName:    aws.String(name),
 		TemplateBody: aws.String(string(template)),
-		Parameters:   params,
+		Parameters:   mapParameters(parameters),
 	})
 
 	if err != nil {
@@ -46,12 +40,7 @@ func (m *AWSStackManager) Create(name string, template, parameters []byte) error
 	return nil
 }
 
-func (m *AWSStackManager) Update(name string, template, parameters []byte) error {
-	params, err := parseParameters(parameters)
-	if err != nil {
-		return err
-	}
-
+func (m *AWSStackManager) Update(name string, parameters []types.Parameter, template []byte) error {
 	response, err := m.client.UpdateStack(&cloudformation.UpdateStackInput{
 		// Set IAM capabilities
 		Capabilities: aws.StringSlice([]string{"CAPABILITY_IAM", "CAPABILITY_NAMED_IAM"}),
@@ -59,7 +48,7 @@ func (m *AWSStackManager) Update(name string, template, parameters []byte) error
 		// which are open to all actions
 		StackName:    aws.String(name),
 		TemplateBody: aws.String(string(template)),
-		Parameters:   params,
+		Parameters:   mapParameters(parameters),
 	})
 
 	if err != nil {
@@ -109,20 +98,15 @@ func (m *AWSStackManager) Status(name string) (bool, string, error) {
 // Helpers
 //
 
-func parseParameters(parameters []byte) ([]*cloudformation.Parameter, error) {
-	var rawParams []types.Parameter
-	if err := json.Unmarshal(parameters, &rawParams); err != nil {
-		return nil, err
-	}
-
-	// map parameter list to cloudformation parameter list
+// mapParameters - Parameter list to cloudformation parameter list
+func mapParameters(parameters []types.Parameter) []*cloudformation.Parameter {
 	returnParams := make([]*cloudformation.Parameter, 0)
-	for _, raw := range rawParams {
+	for _, p := range parameters {
 		returnParams = append(returnParams, &cloudformation.Parameter{
-			ParameterKey:   aws.String(raw.ParameterKey),
-			ParameterValue: aws.String(raw.ParameterValue),
+			ParameterKey:   aws.String(p.ParameterKey),
+			ParameterValue: aws.String(p.ParameterValue),
 		})
 	}
 
-	return returnParams, nil
+	return returnParams
 }

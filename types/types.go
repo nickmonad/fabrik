@@ -14,11 +14,14 @@ type Repository interface {
 // A stack is a collection of resources typically specified by a version
 // controlled file.
 type StackManager interface {
-	Create(name string, template, parameters []byte) error
-	Update(name string, template, parameters []byte) error
+	Create(name string, parameters []Parameter, template []byte) error
+	Update(name string, parameters []Parameter, template []byte) error
 	Delete(name string) error
 	Status(name string) (bool, string, error)
 }
+
+// StackOperation is the function signature for stateful stack operations.
+type StackOperation func(string, []Parameter, []byte) error
 
 // ParameterStore accesses secure parameters.
 type ParameterStore interface {

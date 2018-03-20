@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/opolis/build/parameters"
 	"github.com/opolis/build/repo"
+	"github.com/opolis/build/secure"
 	"github.com/opolis/build/stack"
 	"github.com/opolis/build/types"
 
@@ -55,8 +55,8 @@ func Handler(event events.DynamoDBEvent) error {
 		}
 
 		// fetch secure repo token
-		parameter := parameters.NewAWSParameterStore(sess)
-		token, err := parameter.Get(keyToken)
+		secureStore := secure.NewAWSSecureStore(sess)
+		token, err := secureStore.Get(keyToken)
 		if err != nil {
 			fmt.Println("error: parameter.Get", err.Error())
 			return nil
@@ -109,7 +109,7 @@ func Process(event types.GitHubEvent, repo types.Repository, manager types.Stack
 	// fetch stack and parameter files from repoistory
 	// pipeline.json - CI/CD pipeline stack spec
 	// parameters.json - stack parameters
-	pipelineTemplate, err := repo.Get(event.Ref, "pipeline.json")
+	template, err := repo.Get(event.Ref, "pipeline.json")
 	if err != nil {
 		return err
 	}
@@ -119,17 +119,29 @@ func Process(event types.GitHubEvent, repo types.Repository, manager types.Stack
 		return err
 	}
 
-	// create or update stack with (TODO) ref specific parameters
-	stack := stackPipeline(event.Repository.Name, event.Ref)
+	parameters, err := parseParameters(parameterSpec)
+	if err != nil {
+		return err
+	}
+
+	// add ref to parameter list
+	// (required parameter by all stacks)
+	parameters = append(parameters, Parameter{
+		ParameterKey:   "Branch",
+		ParameterValue: parseRef(event.Ref),
+	})
+
+	// create or update stack with ref specific parameters
+	stack := stackName(event.Repository.Name, event.Ref)
 	exists, _, err := manager.Status(stack)
 	if err != nil {
 		return err
 	}
 
 	if !exists {
-		err = StackOp(manager.Create, manager, stack, pipelineTemplate, parameterSpec)
+		err = StackOp(manager.Create, manager, stack, parameters, template)
 	} else {
-		err = StackOp(manager.Update, manager, stack, pipelineTemplate, parameterSpec)
+		err = StackOp(manager.Update, manager, stack, parameters, template)
 	}
 
 	if err != nil {
@@ -139,12 +151,10 @@ func Process(event types.GitHubEvent, repo types.Repository, manager types.Stack
 	return nil
 }
 
-type Op func(string, []byte, []byte) error
-
-// Create instructs the stack manager to create the stack, but waits until
-// the stack creation is complete.
-func StackOp(op Op, manager types.StackManager, stack string, template, parameters []byte) error {
-	if err := op(stack, template, parameters); err != nil {
+// StackOp performs the given stack operation (Create or Update), but waits until
+// the operation is either completed or failed.
+func StackOp(op types.StackOperation, manager types.StackManager, stack string, parameters []types.Parameter, template []byte) error {
+	if err := op(stack, parameters, template); err != nil {
 		return err
 	}
 
@@ -167,11 +177,20 @@ func StackOp(op Op, manager types.StackManager, stack string, template, paramete
 // Helpers
 //
 
-func stackPipeline(repo, ref string) string {
+func stackName(repo, ref string) string {
 	return fmt.Sprintf("opolis-build-pipeline-%s-%s", repo, parseRef(ref))
 }
 
 func parseRef(ref string) string {
 	components := strings.Split(ref, "/")
 	return components[len(components)-1]
+}
+
+func parseParameters(parameters []byte) ([]types.Parameter, error) {
+	var parsed []types.Parameter
+	if err := json.Unmarshal(parameters, &parsed); err != nil {
+		return nil, err
+	}
+
+	return parsed, nil
 }
