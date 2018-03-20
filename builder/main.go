@@ -13,7 +13,7 @@ const (
 )
 
 func main() {
-	lambda.Start(Entrypoint)
+	lambda.Start(Handler)
 }
 
 // Repository provides a means to fetch data from

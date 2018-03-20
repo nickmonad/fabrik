@@ -29,7 +29,8 @@ deploy:
 
 .PHONY: update
 update: build
-	@$(RUN) serverless deploy function -f build
+	@$(RUN) serverless deploy function -f builder
+	@$(RUN) serverless deploy function -f listener
 
 .PHONY: shell
 shell:
