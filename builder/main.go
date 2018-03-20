@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 
 	"github.com/opolis/build/parameters"
 	"github.com/opolis/build/repo"
@@ -17,6 +18,11 @@ import (
 const (
 	keyHmac  = "opolis-build-hmac"
 	keyToken = "opolis-build-token"
+)
+
+var (
+	regexCompleted = regexp.MustCompile(`.*_COMPLETE`)
+	regexFailed    = regexp.MustCompile(`.*_FAILED`)
 )
 
 func main() {
@@ -100,6 +106,20 @@ func Process(event types.GitHubEvent, repo types.Repository, stackManager types.
 	// fetch stack and parameter files from repoistory
 	// pipeline.json - CI/CD pipeline stack spec
 	// parameters.json - stack parameters
+	_, err := repo.Get(event.Ref, "pipeline.json")
+	if err != nil {
+		return err
+	}
+
+	_, err = repo.Get(event.Ref, "parameters.json")
+	if err != nil {
+		return err
+	}
+
+	stack := stackPipeline(event.Repository.Name, event.Ref)
+	exists, status, err := stackManager.Exists(stack)
+	fmt.Println(exists, status, err)
+
 	return nil
 }
 
