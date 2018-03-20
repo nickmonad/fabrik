@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/opolis/build/parameters"
 	"github.com/opolis/build/repo"
@@ -79,6 +80,7 @@ func Handler(event events.DynamoDBEvent) error {
 // Process reacts to GitHub push event writes from the DynamoDB table stream
 // and processes them for building. Each incoming event structure is the exact JSON from GitHub.
 // We assume we are _only_ receiving push events at this time.
+// Incoming refs are of the form 'ref/{heads|tag}/{value}'
 //
 // A repository's 'stack' in this context means an infrastructure template (i.e. CloudFormation)
 // defining the CI pipeline and build projects.
@@ -103,25 +105,62 @@ func Handler(event events.DynamoDBEvent) error {
 //     if tag: call UpdatePipeline with tag
 //     call StartPipeline
 //
-func Process(event types.GitHubEvent, repo types.Repository, stackManager types.StackManager) error {
+func Process(event types.GitHubEvent, repo types.Repository, manager types.StackManager) error {
 	// fetch stack and parameter files from repoistory
 	// pipeline.json - CI/CD pipeline stack spec
 	// parameters.json - stack parameters
-	// pipelineTemplate, err := repo.Get(event.Ref, "pipeline.json")
-	// if err != nil {
-	// 	return err
-	// }
+	pipelineTemplate, err := repo.Get(event.Ref, "pipeline.json")
+	if err != nil {
+		return err
+	}
 
-	// parameterSpec, err := repo.Get(event.Ref, "parameters.json")
-	// if err != nil {
-	// 	return err
-	// }
+	parameterSpec, err := repo.Get(event.Ref, "parameters.json")
+	if err != nil {
+		return err
+	}
 
 	// create or update stack with (TODO) ref specific parameters
 	stack := stackPipeline(event.Repository.Name, event.Ref)
-	fmt.Println(stackManager.Exists(stack))
+	exists, _, err := manager.Status(stack)
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		err = StackOp(manager.Create, manager, stack, pipelineTemplate, parameterSpec)
+	} else {
+		err = StackOp(manager.Update, manager, stack, pipelineTemplate, parameterSpec)
+	}
+
+	if err != nil {
+		return err
+	}
 
 	return nil
+}
+
+type Op func(string, []byte, []byte) error
+
+// Create instructs the stack manager to create the stack, but waits until
+// the stack creation is complete.
+func StackOp(op Op, manager types.StackManager, stack string, template, parameters []byte) error {
+	if err := op(stack, template, parameters); err != nil {
+		return err
+	}
+
+	for {
+		_, status, err := manager.Status(stack)
+		if err != nil {
+			return err
+		}
+
+		// continue waiting if stack stauts is neither "completed" or "failed"
+		if !(regexCompleted.MatchString(status) || regexFailed.MatchString(status)) {
+			fmt.Println("stack status:", status)
+			time.Sleep(time.Second)
+			continue
+		}
+	}
 }
 
 //
@@ -129,7 +168,7 @@ func Process(event types.GitHubEvent, repo types.Repository, stackManager types.
 //
 
 func stackPipeline(repo, ref string) string {
-	return fmt.Sprintf("opolis-build-%s-%s-pipeline", repo, parseRef(ref))
+	return fmt.Sprintf("opolis-build-pipeline-%s-%s", repo, parseRef(ref))
 }
 
 func parseRef(ref string) string {

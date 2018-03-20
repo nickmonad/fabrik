@@ -14,10 +14,10 @@ type Repository interface {
 // A stack is a collection of resources typically specified by a version
 // controlled file.
 type StackManager interface {
-	Create(name string, template []byte, parameters []byte) error
-	Update(name string, template []byte, parameters []byte) error
+	Create(name string, template, parameters []byte) error
+	Update(name string, template, parameters []byte) error
 	Delete(name string) error
-	Exists(name string) (bool, string, error)
+	Status(name string) (bool, string, error)
 }
 
 // ParameterStore accesses secure parameters.

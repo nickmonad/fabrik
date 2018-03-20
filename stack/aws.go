@@ -83,7 +83,7 @@ func (m *AWSStackManager) Delete(name string) error {
 	return nil
 }
 
-func (m *AWSStackManager) Exists(name string) (bool, string, error) {
+func (m *AWSStackManager) Status(name string) (bool, string, error) {
 	response, err := m.client.DescribeStacks(&cloudformation.DescribeStacksInput{
 		StackName: aws.String(name),
 	})
