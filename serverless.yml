@@ -23,7 +23,6 @@ functions:
         timeout: 10
         role: lambdaRole
         environment:
-            AWS_REGION: ${self:provider.region}
             EVENT_TABLE:
                 Ref: dynamoTable
         events:
@@ -35,8 +34,6 @@ functions:
         memorySize: 128
         timeout: 300
         role: lambdaAllRole
-        environment:
-            AWS_REGION: ${self:provider.region}
         events:
             - stream:
                 type: dynamodb
@@ -81,8 +78,8 @@ resources:
                           Version: '2012-10-17'
                           Statement:
                           - Effect: Allow
-                            Action: *
-                            Resource: *
+                            Action: '*'
+                            Resource: '*'
         lambdaRole:
             Type: AWS::IAM::Role
             Properties:
