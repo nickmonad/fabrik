@@ -141,6 +141,17 @@ func Process(event types.GitHubEvent, repo types.Repository, manager types.Stack
 		return err
 	}
 
+	if event.Deleted {
+		if !exists {
+			fmt.Println("warning: received push/deleted event for non-existant stack")
+			return nil
+		}
+
+		if err := manager.Delete(stack); err != nil {
+			return err
+		}
+	}
+
 	if !exists {
 		fmt.Println("stack create:", stack)
 		err = StackOp(manager.Create, manager, stack, parameters, template)
