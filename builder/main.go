@@ -113,6 +113,25 @@ func Handler(event events.DynamoDBEvent) error {
 //     call StartPipeline
 //
 func Process(event types.GitHubEvent, repo types.Repository, manager types.StackManager, repoToken string) error {
+	// Get stack state, delete if necessary
+	stack := stackName(event.Repository.Name, event.Ref)
+	exists, _, err := manager.Status(stack)
+	if err != nil {
+		return err
+	}
+
+	if event.Deleted {
+		if !exists {
+			fmt.Println("warning: received push/deleted event for non-existant stack")
+			return nil
+		}
+
+		fmt.Println("deleting stack", stack)
+		if err := manager.Delete(stack); err != nil {
+			return err
+		}
+	}
+
 	// fetch stack and parameter files from repoistory
 	// pipeline.json - CI/CD pipeline stack spec
 	// parameters.json - stack parameters
@@ -135,23 +154,6 @@ func Process(event types.GitHubEvent, repo types.Repository, manager types.Stack
 	parameters = append(parameters, requiredParameters(event, repoToken)...)
 
 	// create or update stack with ref specific parameters
-	stack := stackName(event.Repository.Name, event.Ref)
-	exists, _, err := manager.Status(stack)
-	if err != nil {
-		return err
-	}
-
-	if event.Deleted {
-		if !exists {
-			fmt.Println("warning: received push/deleted event for non-existant stack")
-			return nil
-		}
-
-		if err := manager.Delete(stack); err != nil {
-			return err
-		}
-	}
-
 	if !exists {
 		fmt.Println("stack create:", stack)
 		err = StackOp(manager.Create, manager, stack, parameters, template)
