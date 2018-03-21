@@ -187,7 +187,7 @@ func parseRef(ref string) string {
 }
 
 func parseParameters(parameters []byte) ([]types.Parameter, error) {
-	var parsed []types.Parameter
+	parsed := make([]types.Parameter, 0)
 	if err := json.Unmarshal(parameters, &parsed); err != nil {
 		return nil, err
 	}
