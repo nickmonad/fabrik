@@ -95,7 +95,6 @@ func Handler(event events.DynamoDBEvent) error {
 // is keyed by 'dev', 'master', and 'release' - corresponding to the CodePipeline instance
 // by the same name ('dev' is applied to all non master/tag refs)
 //
-//     prepare context
 //     if ref is tag:
 //       stack = opolis-build-{repo}-release-pipeline
 //     if ref = 'master':
@@ -107,6 +106,8 @@ func Handler(event events.DynamoDBEvent) error {
 //       if not exists(stack): warn and skip
 //       else: delete stack
 //       return
+//
+//     prepare context
 //
 //     create or update stack with parameters
 //     if tag: call UpdatePipeline with tag
@@ -126,10 +127,7 @@ func Process(event types.GitHubEvent, repo types.Repository, manager types.Stack
 			return nil
 		}
 
-		fmt.Println("deleting stack", stack)
-		if err := manager.Delete(stack); err != nil {
-			return err
-		}
+		return manager.Delete(stack)
 	}
 
 	// fetch stack and parameter files from repoistory
