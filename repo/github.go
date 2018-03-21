@@ -1,12 +1,15 @@
 package repo
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+
+	"github.com/opolis/build/types"
 )
 
 type GitHubRepository struct {
@@ -33,7 +36,7 @@ func (repo *GitHubRepository) Get(ref, path string) ([]byte, error) {
 		repo.base, repo.owner, repo.name, path, ref,
 	)
 
-	fmt.Println("requesting: ", url)
+	fmt.Println("requesting:", url)
 
 	request, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -69,4 +72,40 @@ func (repo *GitHubRepository) Get(ref, path string) ([]byte, error) {
 	}
 
 	return base64.StdEncoding.DecodeString(parsed["content"].(string))
+}
+
+func (repo *GitHubRepository) Status(sha string, status types.GitHubStatus) error {
+	payload, err := json.Marshal(status)
+	if err != nil {
+		return err
+	}
+
+	url := fmt.Sprintf(
+		"%s/repos/%s/%s/statuses/%s",
+		repo.base, repo.owner, repo.name, sha,
+	)
+
+	fmt.Println(url)
+	fmt.Printf("posting status %s %s\n", status.Context, status.State)
+
+	request, err := http.NewRequest("POST", url, bytes.NewReader(payload))
+	if err != nil {
+		return err
+	}
+
+	request.Header.Set("Authorization", fmt.Sprintf("token %s", repo.token))
+
+	// make request
+	resp, err := repo.client.Do(request)
+	if err != nil {
+		return errors.New(fmt.Sprintf("error making request: %s", err.Error()))
+	}
+	defer resp.Body.Close()
+
+	// return error for non-200 status code
+	if resp.StatusCode < 200 || resp.StatusCode > 300 {
+		return errors.New(fmt.Sprintf("error posting status %s", resp.Status))
+	}
+
+	return nil
 }

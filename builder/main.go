@@ -14,6 +14,7 @@ import (
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/aws/aws-lambda-go/lambdacontext"
 	"github.com/aws/aws-sdk-go/aws/session"
 )
 
@@ -42,6 +43,9 @@ func Handler(event events.DynamoDBEvent) error {
 
 	// AWS session
 	sess := session.Must(session.NewSession())
+
+	fmt.Println("group", lambdacontext.LogGroupName)
+	fmt.Println("stream", lambdacontext.LogStreamName)
 
 	for _, record := range event.Records {
 		// parse github event
@@ -133,17 +137,7 @@ func Process(event types.GitHubEvent, repo types.Repository, manager types.Stack
 	// fetch stack and parameter files from repoistory
 	// pipeline.json - CI/CD pipeline stack spec
 	// parameters.json - stack parameters
-	template, err := repo.Get(event.Ref, "pipeline.json")
-	if err != nil {
-		return err
-	}
-
-	parameterSpec, err := repo.Get(event.Ref, "parameters.json")
-	if err != nil {
-		return err
-	}
-
-	parameters, err := parseParameters(parameterSpec)
+	template, parameters, err := buildContext(event, repo, "pipeline.json", "parameters.json")
 	if err != nil {
 		return err
 	}
@@ -153,19 +147,21 @@ func Process(event types.GitHubEvent, repo types.Repository, manager types.Stack
 
 	// create or update stack with ref specific parameters
 	if !exists {
+		// create - pipeline is started automatically when created
 		fmt.Println("stack create:", stack)
-		err = StackOp(manager.Create, manager, stack, parameters, template)
+		if err := StackOp(manager.Create, manager, stack, parameters, template); err != nil {
+			return err
+		}
 	} else {
+		// update - manually start pipeline
 		fmt.Println("stack update:", stack)
-		err = StackOp(manager.Update, manager, stack, parameters, template)
-	}
+		if err := StackOp(manager.Update, manager, stack, parameters, template); err != nil {
+			return err
+		}
 
-	if err != nil {
-		return err
-	}
-
-	if err = manager.StartBuild(stack); err != nil {
-		return err
+		if err := manager.StartBuild(stack); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -184,7 +180,7 @@ func StackOp(op types.StackOperation, manager types.StackManager, stack string, 
 			return err
 		}
 
-		// continue waiting if stack stauts is neither "completed" or "failed"
+		// continue waiting if stack status is neither "completed" or "failed"
 		if !(regexCompleted.MatchString(status) || regexFailed.MatchString(status)) {
 			fmt.Println("stack status:", status)
 			time.Sleep(time.Second)
@@ -227,4 +223,23 @@ func requiredParameters(event types.GitHubEvent, repoToken string) []types.Param
 	}
 
 	return required
+}
+
+func buildContext(event types.GitHubEvent, repo types.Repository, templatePath, parameterPath string) ([]byte, []types.Parameter, error) {
+	template, err := repo.Get(event.Ref, templatePath)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	parameterSpec, err := repo.Get(event.Ref, parameterPath)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	parameters, err := parseParameters(parameterSpec)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return template, parameters, nil
 }
