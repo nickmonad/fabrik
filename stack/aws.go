@@ -36,7 +36,7 @@ func (m *AWSStackManager) Create(name string, parameters []types.Parameter, temp
 		return err
 	}
 
-	fmt.Println("cloudformation stack create started:", response.StackId)
+	fmt.Println("cloudformation stack create started:", *(response.StackId))
 	return nil
 }
 
@@ -55,7 +55,7 @@ func (m *AWSStackManager) Update(name string, parameters []types.Parameter, temp
 		return err
 	}
 
-	fmt.Println("cloudformation stack udpate started:", response.StackId)
+	fmt.Println("cloudformation stack udpate started:", *(response.StackId))
 	return nil
 }
 
