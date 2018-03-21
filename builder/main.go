@@ -68,7 +68,7 @@ func Handler(event events.DynamoDBEvent) error {
 		stackManager := stack.NewAWSStackManger(sess)
 		repo := repo.NewGitHubRepository(event.Repository.Owner.Name, event.Repository.Name, token)
 
-		if err := Process(event, repo, stackManager); err != nil {
+		if err := Process(event, repo, stackManager, token); err != nil {
 			fmt.Println("error processing event:", err.Error())
 			return nil
 		}
@@ -105,7 +105,7 @@ func Handler(event events.DynamoDBEvent) error {
 //     if tag: call UpdatePipeline with tag
 //     call StartPipeline
 //
-func Process(event types.GitHubEvent, repo types.Repository, manager types.StackManager) error {
+func Process(event types.GitHubEvent, repo types.Repository, manager types.StackManager, repoToken string) error {
 	// fetch stack and parameter files from repoistory
 	// pipeline.json - CI/CD pipeline stack spec
 	// parameters.json - stack parameters
@@ -124,12 +124,9 @@ func Process(event types.GitHubEvent, repo types.Repository, manager types.Stack
 		return err
 	}
 
-	// add ref to parameter list
+	// ammend parameter list with required parameters
 	// (required parameter by all stacks)
-	parameters = append(parameters, Parameter{
-		ParameterKey:   "Branch",
-		ParameterValue: parseRef(event.Ref),
-	})
+	parameters = addRequiredParameters(parameters, event, repoToken)
 
 	// create or update stack with ref specific parameters
 	stack := stackName(event.Repository.Name, event.Ref)
@@ -170,6 +167,9 @@ func StackOp(op types.StackOperation, manager types.StackManager, stack string, 
 			time.Sleep(time.Second)
 			continue
 		}
+
+		fmt.Println("stack status:", status)
+		return nil
 	}
 }
 
@@ -193,4 +193,20 @@ func parseParameters(parameters []byte) ([]types.Parameter, error) {
 	}
 
 	return parsed, nil
+}
+
+func addRequiredParameters(params []types.Parameter, event types.GitHubEvent, repoToken string) []types.Parameter {
+	required := []types.Parameter{
+		types.Parameter{ParameterKey: "RepoOwner", ParameterValue: event.Repository.Owner.Name},
+		types.Parameter{ParameterKey: "RepoName", ParameterValue: event.Repository.Name},
+		types.Parameter{ParameterKey: "RepoBranch", ParameterValue: parseRef(event.Ref)},
+		types.Parameter{ParameterKey: "RepoToken", ParameterValue: repoToken},
+	}
+
+	ret := params
+	for _, r := range required {
+		ret = append(ret, r)
+	}
+
+	return ret
 }
