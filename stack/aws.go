@@ -1,23 +1,37 @@
 package stack
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/opolis/build/types"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
+	"github.com/aws/aws-sdk-go/service/codepipeline"
+)
+
+const (
+	// AWS sdk code does not make specific distinctions amongst various
+	// types of ValidationErrors, other than their message
+	// ...so we have to match them
+	ErrValidationError = "ValidationError"
+	ErrNoUpdate        = "No updates are to be performed."
+	ErrDoesNotExist    = "does not exist"
 )
 
 type AWSStackManager struct {
-	client *cloudformation.CloudFormation
+	client   *cloudformation.CloudFormation
+	pipeline *codepipeline.CodePipeline
 }
 
 func NewAWSStackManger(session *session.Session) *AWSStackManager {
 	return &AWSStackManager{
-		client: cloudformation.New(session),
+		client:   cloudformation.New(session),
+		pipeline: codepipeline.New(session),
 	}
 }
 
@@ -43,7 +57,10 @@ func (m *AWSStackManager) Create(name string, parameters []types.Parameter, temp
 func (m *AWSStackManager) Update(name string, parameters []types.Parameter, template []byte) error {
 	response, err := m.client.UpdateStack(&cloudformation.UpdateStackInput{
 		// Set IAM capabilities
-		Capabilities: aws.StringSlice([]string{"CAPABILITY_IAM", "CAPABILITY_NAMED_IAM"}),
+		Capabilities: aws.StringSlice([]string{
+			cloudformation.CapabilityCapabilityIam,
+			cloudformation.CapabilityCapabilityNamedIam,
+		}),
 		// RoleARN - for ease of development, we are depending on the environment credentials,
 		// which are open to all actions
 		StackName:    aws.String(name),
@@ -52,6 +69,15 @@ func (m *AWSStackManager) Update(name string, parameters []types.Parameter, temp
 	})
 
 	if err != nil {
+		if awsErr, ok := err.(awserr.Error); ok {
+			if awsErr.Code() == ErrValidationError {
+				if strings.Contains(awsErr.Message(), ErrNoUpdate) {
+					// stack does not need updating, continue
+					return nil
+				}
+			}
+		}
+
 		return err
 	}
 
@@ -78,9 +104,7 @@ func (m *AWSStackManager) Status(name string) (bool, string, error) {
 	})
 
 	if err != nil {
-		// janky solution to determining if stack does not exist,
-		// AWS docs on exactly _what_ err this should be when the stack isn't found sucks
-		if strings.Contains(err.Error(), "does not exist") {
+		if strings.Contains(err.Error(), ErrDoesNotExist) {
 			return false, "", nil
 		}
 
@@ -94,11 +118,28 @@ func (m *AWSStackManager) Status(name string) (bool, string, error) {
 	return true, *(response.Stacks[0].StackStatus), nil
 }
 
+func (m *AWSStackManager) StartBuild(name string) error {
+	response, err := m.pipeline.StartPipelineExecution(&codepipeline.StartPipelineExecutionInput{
+		Name: aws.String(name),
+	})
+
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("codepipeline execution id:", *(response.PipelineExecutionId))
+	return nil
+}
+
+func (m *AWSStackManager) UpdateBuild(name, ref string) error {
+	return errors.New("not implemented")
+}
+
 //
 // Helpers
 //
 
-// mapParameters - Parameter list to cloudformation parameter list
+// mapParameters - Parameter list to cloudformation.Parameter list
 func mapParameters(parameters []types.Parameter) []*cloudformation.Parameter {
 	returnParams := make([]*cloudformation.Parameter, 0)
 	for _, p := range parameters {

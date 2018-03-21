@@ -18,6 +18,9 @@ type StackManager interface {
 	Update(name string, parameters []Parameter, template []byte) error
 	Delete(name string) error
 	Status(name string) (bool, string, error)
+
+	StartBuild(name string) error
+	UpdateBuild(name, ref string) error
 }
 
 // StackOperation is the function signature for stateful stack operations.
