@@ -2,7 +2,6 @@ package stack
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/opolis/build/types"
@@ -12,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/codepipeline"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -26,12 +26,14 @@ const (
 type AWSStackManager struct {
 	client   *cloudformation.CloudFormation
 	pipeline *codepipeline.CodePipeline
+	log      *log.Entry
 }
 
-func NewAWSStackManger(session *session.Session) *AWSStackManager {
+func NewAWSStackManger(log *log.Entry, session *session.Session) *AWSStackManager {
 	return &AWSStackManager{
 		client:   cloudformation.New(session),
 		pipeline: codepipeline.New(session),
+		log:      log,
 	}
 }
 
@@ -50,7 +52,7 @@ func (m *AWSStackManager) Create(name string, parameters []types.Parameter, temp
 		return err
 	}
 
-	fmt.Println("cloudformation stack create started:", *(response.StackId))
+	m.log.Infoln("cloudformation stack create started:", *(response.StackId))
 	return nil
 }
 
@@ -81,7 +83,7 @@ func (m *AWSStackManager) Update(name string, parameters []types.Parameter, temp
 		return err
 	}
 
-	fmt.Println("cloudformation stack udpate started:", *(response.StackId))
+	m.log.Infoln("cloudformation stack udpate started:", *(response.StackId))
 	return nil
 }
 
@@ -94,7 +96,7 @@ func (m *AWSStackManager) Delete(name string) error {
 		return err
 	}
 
-	fmt.Println("cloudformation stack delete started:", name)
+	m.log.Infoln("cloudformation stack delete started:", name)
 	return nil
 }
 
@@ -127,7 +129,7 @@ func (m *AWSStackManager) StartBuild(name string) error {
 		return err
 	}
 
-	fmt.Println("codepipeline execution id:", *(response.PipelineExecutionId))
+	m.log.Infoln("codepipeline execution id:", *(response.PipelineExecutionId))
 	return nil
 }
 

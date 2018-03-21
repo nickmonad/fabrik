@@ -10,9 +10,12 @@ import (
 	"net/http"
 
 	"github.com/opolis/build/types"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type GitHubRepository struct {
+	log    *log.Entry
 	client *http.Client
 	base   string
 	token  string
@@ -20,8 +23,9 @@ type GitHubRepository struct {
 	name   string
 }
 
-func NewGitHubRepository(owner, name, token string) *GitHubRepository {
+func NewGitHubRepository(log *log.Entry, owner, name, token string) *GitHubRepository {
 	return &GitHubRepository{
+		log:    log,
 		client: http.DefaultClient,
 		base:   "https://api.github.com",
 		token:  token,
@@ -36,7 +40,7 @@ func (repo *GitHubRepository) Get(ref, path string) ([]byte, error) {
 		repo.base, repo.owner, repo.name, path, ref,
 	)
 
-	fmt.Println("requesting:", url)
+	repo.log.Infoln("requesting:", path)
 
 	request, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -60,15 +64,13 @@ func (repo *GitHubRepository) Get(ref, path string) ([]byte, error) {
 	// read json
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Println("error reading body")
-		return nil, err
+		return nil, fmt.Errorf("error reading body: %s", err.Error())
 	}
 
 	// decode base64 content
 	var parsed map[string]interface{}
 	if err := json.Unmarshal(body, &parsed); err != nil {
-		fmt.Println("error decoding json")
-		return nil, err
+		return nil, fmt.Errorf("error decoding json: %s", err.Error())
 	}
 
 	return base64.StdEncoding.DecodeString(parsed["content"].(string))
@@ -85,8 +87,7 @@ func (repo *GitHubRepository) Status(sha string, status types.GitHubStatus) erro
 		repo.base, repo.owner, repo.name, sha,
 	)
 
-	fmt.Println(url)
-	fmt.Printf("posting status %s %s\n", status.Context, status.State)
+	repo.log.Infoln("posting status %s %s\n", status.Context, status.State)
 
 	request, err := http.NewRequest("POST", url, bytes.NewReader(payload))
 	if err != nil {

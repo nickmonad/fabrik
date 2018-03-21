@@ -16,6 +16,7 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-lambda-go/lambdacontext"
 	"github.com/aws/aws-sdk-go/aws/session"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -28,6 +29,10 @@ var (
 	regexFailed    = regexp.MustCompile(`.*_FAILED`)
 )
 
+func init() {
+	log.SetFormatter(&log.JSONFormatter{DisableTimestamp: true})
+}
+
 func main() {
 	lambda.Start(Handler)
 }
@@ -37,15 +42,15 @@ func main() {
 func Handler(event events.DynamoDBEvent) error {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println("recovered from panic:", r)
+			log.Errorln("recovered from panic:", r)
 		}
 	}()
 
 	// AWS session
 	sess := session.Must(session.NewSession())
 
-	fmt.Println("group", lambdacontext.LogGroupName)
-	fmt.Println("stream", lambdacontext.LogStreamName)
+	log.Infoln("group", lambdacontext.LogGroupName)
+	log.Infoln("stream", lambdacontext.LogStreamName)
 
 	for _, record := range event.Records {
 		// parse github event
@@ -54,32 +59,36 @@ func Handler(event events.DynamoDBEvent) error {
 		rawEvent := []byte(item["payload"].String())
 
 		if eventType != types.EventTypePush {
-			fmt.Println("received non-push event:", eventType, "- no action")
+			log.Warnln("received non-push event:", eventType, "- no action")
 			return nil
 		}
 
 		var event types.GitHubEvent
 		if err := json.Unmarshal(rawEvent, &event); err != nil {
-			fmt.Println("error: json.Unmarshal", err.Error())
+			log.Errorln("json.Unmarshal", err.Error())
 			return nil
 		}
+
+		log := log.WithFields(log.Fields{
+			"ref":    parseRef(event.Ref),
+			"commit": shortHash(event.After),
+			"repo":   event.Repository.Name,
+		})
 
 		// fetch secure repo token
 		secureStore := secure.NewAWSSecureStore(sess)
 		token, err := secureStore.Get(keyToken)
 		if err != nil {
-			fmt.Println("error: parameter.Get", err.Error())
+			log.Errorln("parameter.Get", err.Error())
 			return nil
 		}
 
-		fmt.Println("repo:", event.Repository.Name, "ref:", event.Ref)
-
 		// prepare processing dependencies and fire
-		stackManager := stack.NewAWSStackManger(sess)
-		repo := repo.NewGitHubRepository(event.Repository.Owner.Name, event.Repository.Name, token)
+		stackManager := stack.NewAWSStackManger(log, sess)
+		repo := repo.NewGitHubRepository(log, event.Repository.Owner.Name, event.Repository.Name, token)
 
-		if err := Process(event, repo, stackManager, token); err != nil {
-			fmt.Println("error processing event:", err.Error())
+		if err := Process(log, event, repo, stackManager, token); err != nil {
+			log.Errorln("error processing event:", err.Error())
 			return nil
 		}
 	}
@@ -117,7 +126,7 @@ func Handler(event events.DynamoDBEvent) error {
 //     if tag: call UpdatePipeline with tag
 //     call StartPipeline
 //
-func Process(event types.GitHubEvent, repo types.Repository, manager types.StackManager, repoToken string) error {
+func Process(log *log.Entry, event types.GitHubEvent, repo types.Repository, manager types.StackManager, repoToken string) error {
 	// Get stack state, delete if necessary
 	stack := stackName(event.Repository.Name, event.Ref)
 	exists, _, err := manager.Status(stack)
@@ -127,7 +136,7 @@ func Process(event types.GitHubEvent, repo types.Repository, manager types.Stack
 
 	if event.Deleted {
 		if !exists {
-			fmt.Println("warning: received push/deleted event for non-existant stack")
+			log.Warnln("received push/deleted event for non-existant stack")
 			return nil
 		}
 
@@ -148,17 +157,18 @@ func Process(event types.GitHubEvent, repo types.Repository, manager types.Stack
 	// create or update stack with ref specific parameters
 	if !exists {
 		// create - pipeline is started automatically when created
-		fmt.Println("stack create:", stack)
-		if err := StackOp(manager.Create, manager, stack, parameters, template); err != nil {
+		log.Infoln("stack create", stack)
+		if err := StackOp(log, manager.Create, manager, stack, parameters, template); err != nil {
 			return err
 		}
 	} else {
 		// update - manually start pipeline
-		fmt.Println("stack update:", stack)
-		if err := StackOp(manager.Update, manager, stack, parameters, template); err != nil {
+		log.Infoln("stack update", stack)
+		if err := StackOp(log, manager.Update, manager, stack, parameters, template); err != nil {
 			return err
 		}
 
+		log.Infoln("start build")
 		if err := manager.StartBuild(stack); err != nil {
 			return err
 		}
@@ -169,7 +179,7 @@ func Process(event types.GitHubEvent, repo types.Repository, manager types.Stack
 
 // StackOp performs the given stack operation (Create or Update), but waits until
 // the operation is either completed or failed.
-func StackOp(op types.StackOperation, manager types.StackManager, stack string, parameters []types.Parameter, template []byte) error {
+func StackOp(log *log.Entry, op types.StackOperation, manager types.StackManager, stack string, parameters []types.Parameter, template []byte) error {
 	if err := op(stack, parameters, template); err != nil {
 		return err
 	}
@@ -182,12 +192,12 @@ func StackOp(op types.StackOperation, manager types.StackManager, stack string, 
 
 		// continue waiting if stack status is neither "completed" or "failed"
 		if !(regexCompleted.MatchString(status) || regexFailed.MatchString(status)) {
-			fmt.Println("stack status:", status)
+			log.Infoln("stack status", status)
 			time.Sleep(time.Second)
 			continue
 		}
 
-		fmt.Println("stack status:", status)
+		log.Infoln("stack status", status)
 		return nil
 	}
 }
@@ -198,6 +208,14 @@ func StackOp(op types.StackOperation, manager types.StackManager, stack string, 
 
 func stackName(repo, ref string) string {
 	return fmt.Sprintf("opolis-build-pipeline-%s-%s", repo, parseRef(ref))
+}
+
+func shortHash(hash string) string {
+	if len(hash) < 6 {
+		return hash
+	}
+
+	return hash[:6]
 }
 
 func parseRef(ref string) string {

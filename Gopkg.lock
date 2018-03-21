@@ -41,6 +41,8 @@
     "private/protocol/query/queryutil",
     "private/protocol/rest",
     "private/protocol/xml/xmlutil",
+    "service/cloudformation",
+    "service/codepipeline",
     "service/dynamodb",
     "service/ssm",
     "service/sts"
@@ -59,9 +61,30 @@
   packages = ["."]
   revision = "0b12d6b5"
 
+[[projects]]
+  name = "github.com/sirupsen/logrus"
+  packages = ["."]
+  revision = "c155da19408a8799da419ed3eeb0cb5db0ad5dbc"
+  version = "v1.0.5"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/crypto"
+  packages = ["ssh/terminal"]
+  revision = "80db560fac1fb3e6ac81dbc7f8ae4c061f5257bd"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/sys"
+  packages = [
+    "unix",
+    "windows"
+  ]
+  revision = "c488ab1dd8481ef762f96a79a9577c27825be697"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "dcabb88cde5df0e4bd357925eeea00502d0f191b15c34c81fda646ad60856d23"
+  inputs-digest = "d34bb886493ef29d9c23334e62d434ba70849fda444b1cf205738ffa09e9e290"
   solver-name = "gps-cdcl"
   solver-version = 1
