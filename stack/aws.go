@@ -77,13 +77,13 @@ func (m *AWSStackManager) Status(name string) (bool, string, error) {
 		StackName: aws.String(name),
 	})
 
-	// janky solution to determining if stack does not exist,
-	// AWS docs on exactly _what_ err this should be when the stack isn't found sucks
-	if strings.Contains(err.Error(), "does not exist") {
-		return false, "", nil
-	}
-
 	if err != nil {
+		// janky solution to determining if stack does not exist,
+		// AWS docs on exactly _what_ err this should be when the stack isn't found sucks
+		if strings.Contains(err.Error(), "does not exist") {
+			return false, "", nil
+		}
+
 		return false, "ERROR", err
 	}
 

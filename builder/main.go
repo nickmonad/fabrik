@@ -34,6 +34,12 @@ func main() {
 // Handler serves as the integration point between the AWS event and business logic by
 // preparing conrete types to satisfy the Handler's interface.
 func Handler(event events.DynamoDBEvent) error {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("recovered from panic:", r)
+		}
+	}()
+
 	// AWS session
 	sess := session.Must(session.NewSession())
 
@@ -125,8 +131,7 @@ func Process(event types.GitHubEvent, repo types.Repository, manager types.Stack
 	}
 
 	// ammend parameter list with required parameters
-	// (required parameter by all stacks)
-	parameters = addRequiredParameters(parameters, event, repoToken)
+	parameters = append(parameters, requiredParameters(event, repoToken)...)
 
 	// create or update stack with ref specific parameters
 	stack := stackName(event.Repository.Name, event.Ref)
@@ -136,8 +141,10 @@ func Process(event types.GitHubEvent, repo types.Repository, manager types.Stack
 	}
 
 	if !exists {
+		fmt.Println("stack create:", stack)
 		err = StackOp(manager.Create, manager, stack, parameters, template)
 	} else {
+		fmt.Println("stack update:", stack)
 		err = StackOp(manager.Update, manager, stack, parameters, template)
 	}
 
@@ -195,7 +202,7 @@ func parseParameters(parameters []byte) ([]types.Parameter, error) {
 	return parsed, nil
 }
 
-func addRequiredParameters(params []types.Parameter, event types.GitHubEvent, repoToken string) []types.Parameter {
+func requiredParameters(event types.GitHubEvent, repoToken string) []types.Parameter {
 	required := []types.Parameter{
 		types.Parameter{ParameterKey: "RepoOwner", ParameterValue: event.Repository.Owner.Name},
 		types.Parameter{ParameterKey: "RepoName", ParameterValue: event.Repository.Name},
@@ -203,10 +210,5 @@ func addRequiredParameters(params []types.Parameter, event types.GitHubEvent, re
 		types.Parameter{ParameterKey: "RepoToken", ParameterValue: repoToken},
 	}
 
-	ret := params
-	for _, r := range required {
-		ret = append(ret, r)
-	}
-
-	return ret
+	return required
 }
