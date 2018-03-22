@@ -87,7 +87,7 @@ func (repo *GitHubRepository) Status(sha string, status types.GitHubStatus) erro
 		repo.base, repo.owner, repo.name, sha,
 	)
 
-	repo.log.Infoln("posting status %s %s\n", status.Context, status.State)
+	repo.log.Infoln("posting status", status.Context, status.State)
 
 	request, err := http.NewRequest("POST", url, bytes.NewReader(payload))
 	if err != nil {

@@ -83,21 +83,22 @@ func Handler(event events.DynamoDBEvent) error {
 		// prepare processing dependencies and fire status
 		stackManager := stack.NewAWSStackManger(log, sess)
 		repo := repo.NewGitHubRepository(log, event.Repository.Owner.Name, event.Repository.Name, token)
+		shortHash := shortHash(event.After)
 
 		// status - pending
-		repo.Status(event.After, prepStatus(types.GitStatePending))
+		repo.Status(event.After, prepStatus(types.GitStatePending, shortHash))
 
 		if err := Process(log, event, repo, stackManager, token); err != nil {
 			log.Errorln("error processing event:", err.Error())
 
 			// status - failure
-			repo.Status(event.After, prepStatus(types.GitStateFailure))
+			repo.Status(event.After, prepStatus(types.GitStateFailure, shortHash))
 
 			return nil
 		}
 
 		// status - ok
-		repo.Status(event.After, prepStatus(types.GitStateSuccess))
+		repo.Status(event.After, prepStatus(types.GitStateSuccess, shortHash))
 	}
 
 	return nil
@@ -225,11 +226,12 @@ func shortHash(hash string) string {
 	return hash[:6]
 }
 
-func statusUrl(logGroup, logStream string) string {
-	return fmt.Sprintf(
-		"https://us-west-2.console.aws.amazon.com/cloudwatch/home?region=us-west-2#logEventViewer:group=%s;stream=%s",
+func statusUrl(logGroup, logStream, shortHash string) string {
+	return "https://us-west-2.console.aws.amazon.com" + fmt.Sprintf(
+		"/cloudwatch/home?region=us-west-2#logEventViewer:group=%s;stream=%s;filter=%s",
 		logGroup,
 		logStream,
+		shortHash,
 	)
 }
 
@@ -247,11 +249,11 @@ func parseParameters(parameters []byte) ([]types.Parameter, error) {
 	return parsed, nil
 }
 
-func prepStatus(state string) types.GitHubStatus {
+func prepStatus(state, shortHash string) types.GitHubStatus {
 	return types.GitHubStatus{
 		State:     state,
 		Context:   types.GitContextPrep,
-		TargetUrl: statusUrl(lambdacontext.LogGroupName, lambdacontext.LogStreamName),
+		TargetUrl: statusUrl(lambdacontext.LogGroupName, lambdacontext.LogStreamName, shortHash),
 	}
 }
 
