@@ -45,6 +45,7 @@ functions:
         handler: bin/notifier
         memorySize: 128
         timeout: 30
+        role: lambdaAllRole
         events:
             - cloudwatchEvent:
                 event:
