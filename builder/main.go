@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -227,12 +228,15 @@ func shortHash(hash string) string {
 }
 
 func statusUrl(logGroup, logStream, shortHash string) string {
-	return "https://us-west-2.console.aws.amazon.com" + fmt.Sprintf(
-		"/cloudwatch/home?region=us-west-2#logEventViewer:group=%s;stream=%s;filter=%s",
+	base := fmt.Sprintf("https://%s.console.aws.amazon.com", os.Getenv("AWS_REGION"))
+	path := fmt.Sprintf("/cloudwatch/home?region=%s#logEventViewer:group=%s;stream=%s;filter=%s",
+		os.Getenv("AWS_REGION"),
 		logGroup,
 		logStream,
 		shortHash,
 	)
+
+	return base + path
 }
 
 func parseRef(ref string) string {
