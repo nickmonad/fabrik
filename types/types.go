@@ -8,7 +8,7 @@ const (
 	GitStatePending = "pending"
 	GitStateSuccess = "success"
 
-	GitContextPrep = "pipeline/prep"
+	GitContextPrep = "pipeline/Prep"
 
 	KeyHmac  = "opolis-build-hmac"
 	KeyToken = "opolis-build-token"
