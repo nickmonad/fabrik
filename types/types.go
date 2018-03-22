@@ -36,6 +36,12 @@ type StackManager interface {
 // StackOperation is the function signature for stateful stack operations.
 type StackOperation func(string, []Parameter, []byte) error
 
+// PipelineManger provides a means of interacting with and querying
+// active CI/CD pipelines.
+type PipelineManager interface {
+	GetRevision(name string) (string, error)
+}
+
 // ParameterStore accesses secure parameters.
 type ParameterStore interface {
 	Get(key string) (string, error)
@@ -68,4 +74,13 @@ type GitHubStatus struct {
 type Parameter struct {
 	ParameterKey   string `json:"ParameterKey"`
 	ParameterValue string `json:"ParameterValue"`
+}
+
+// PipelineStageDetail represents a stage change event metadata
+type PipelineStageDetail struct {
+	Version     float32 `json:"version"`
+	Pipeline    string  `json:"pipeline"`
+	ExecutionId string  `json:"execution-id"`
+	Stage       string  `json:"stage"`
+	State       string  `json:"state"`
 }

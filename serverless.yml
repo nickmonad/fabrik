@@ -41,6 +41,22 @@ functions:
                     Fn::GetAtt:
                       - dynamoTable
                       - StreamArn
+    notifier:
+        handler: bin/notifier
+        memorySize: 128
+        timeout: 30
+        events:
+            - cloudwatchEvent:
+                event:
+                    source:
+                        - "aws.codepipeline"
+                    detail-type:
+                        - "CodePipeline Stage Execution State Change"
+                    detail:
+                        state:
+                            - STARTED
+                            - SUCCEEDED
+                            - FAILED
 
 resources:
     Resources:

@@ -22,6 +22,7 @@ deps:
 build:
 	@$(RUN) $(COMPILE) -o bin/builder builder/main.go
 	@$(RUN) $(COMPILE) -o bin/listener listener/main.go
+	@$(RUN) $(COMPILE) -o bin/notifier notifier/main.go
 
 .PHONY: deploy
 deploy:
@@ -31,6 +32,7 @@ deploy:
 update: build
 	@$(RUN) serverless --stage dev deploy function -f builder
 	@$(RUN) serverless --stage dev deploy function -f listener
+	@$(RUN) serverless --stage dev deploy function -f notifier
 
 .PHONY: shell
 shell:
