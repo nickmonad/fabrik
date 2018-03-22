@@ -3,6 +3,7 @@ package pipeline
 import (
 	"errors"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/codepipeline"
 )
@@ -20,6 +21,29 @@ func NewAWSPipelineManager(session *session.Session) *AWSPipelineManager {
 	return &AWSPipelineManager{
 		client: codepipeline.New(session),
 	}
+}
+
+func (m *AWSPipelineManager) GetRepoInfo(name string) (string, string, error) {
+	resp, err := m.client.GetPipeline(&codepipeline.GetPipelineInput{
+		Name: aws.String(name),
+	})
+
+	if err != nil {
+		return "", "", err
+	}
+
+	for _, stage := range resp.Pipeline.Stages {
+		if *(stage.Name) == StageNameSource {
+			if len(stage.Actions) == 0 {
+				return "", "", errors.New("no source stage actions")
+			}
+
+			action := stage.Actions[0]
+			return *(action.Configuration["Owner"]), *(action.Configuration["Repo"]), nil
+		}
+	}
+
+	return "", "", errors.New("source stage not found")
 }
 
 func (m *AWSPipelineManager) GetRevision(name string) (string, error) {

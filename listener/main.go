@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/opolis/build/secure"
+	"github.com/opolis/build/types"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -50,7 +51,7 @@ func Handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	// Get HMAC key
 	secureStore := secure.NewAWSSecureStore(sess)
-	hmacKey, err := secureStore.Get("opolis-build-hmac")
+	hmacKey, err := secureStore.Get(types.KeyHmac)
 	if err != nil {
 		fmt.Println("could not read hmac key: ", err.Error())
 		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, nil

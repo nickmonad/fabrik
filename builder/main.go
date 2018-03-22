@@ -20,11 +20,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const (
-	keyHmac  = "opolis-build-hmac"
-	keyToken = "opolis-build-token"
-)
-
 var (
 	regexCompleted = regexp.MustCompile(`.*_COMPLETE`)
 	regexFailed    = regexp.MustCompile(`.*_FAILED`)
@@ -75,7 +70,7 @@ func Handler(event events.DynamoDBEvent) error {
 
 		// fetch secure repo token
 		secureStore := secure.NewAWSSecureStore(sess)
-		token, err := secureStore.Get(keyToken)
+		token, err := secureStore.Get(types.KeyToken)
 		if err != nil {
 			log.Errorln("parameter.Get", err.Error())
 			return nil

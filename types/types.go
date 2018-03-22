@@ -8,9 +8,14 @@ const (
 	GitStatePending = "pending"
 	GitStateSuccess = "success"
 
-	GitContextPrep   = "ci/prep"
-	GitContextBuild  = "ci/build"
-	GitContextDeploy = "ci/deploy"
+	GitContextPrep = "pipeline/prep"
+
+	KeyHmac  = "opolis-build-hmac"
+	KeyToken = "opolis-build-token"
+
+	PipelineStateStarted   = "STARTED"
+	PipelineStateSucceeded = "SUCCEEDED"
+	PipelineStateFailed    = "FAILED"
 )
 
 // Repository provides a means to fetch data from
@@ -39,6 +44,7 @@ type StackOperation func(string, []Parameter, []byte) error
 // PipelineManger provides a means of interacting with and querying
 // active CI/CD pipelines.
 type PipelineManager interface {
+	GetRepoInfo(name string) (string, string, error)
 	GetRevision(name string) (string, error)
 }
 
