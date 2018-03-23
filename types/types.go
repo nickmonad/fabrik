@@ -45,7 +45,7 @@ type StackOperation func(string, []Parameter, []byte) error
 // active CI/CD pipelines.
 type PipelineManager interface {
 	GetRepoInfo(name string) (string, string, error)
-	GetRevision(name string) (string, error)
+	GetRevision(execId, name string) (string, error)
 }
 
 // ParameterStore accesses secure parameters.

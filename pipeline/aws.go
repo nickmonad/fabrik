@@ -46,26 +46,20 @@ func (m *AWSPipelineManager) GetRepoInfo(name string) (string, string, error) {
 	return "", "", errors.New("source stage not found")
 }
 
-func (m *AWSPipelineManager) GetRevision(name string) (string, error) {
-	resp, err := m.client.GetPipelineState(&codepipeline.GetPipelineStateInput{
-		Name: aws.String(name),
+func (m *AWSPipelineManager) GetRevision(execId, name string) (string, error) {
+	resp, err := m.client.GetPipelineExecution(&codepipeline.GetPipelineExecutionInput{
+		PipelineExecutionId: aws.String(execId),
+		PipelineName:        aws.String(name),
 	})
 
 	if err != nil {
 		return "", err
 	}
 
-	// find the Source stage, and pull the current revision
-	// from the GitHub action
-	for _, stage := range resp.StageStates {
-		if *(stage.StageName) == StageNameSource {
-			for _, action := range stage.ActionStates {
-				if *(action.ActionName) == ActionNameGitHub {
-					return *(action.CurrentRevision.RevisionId), nil
-				}
-			}
-		}
+	// Get the current revision
+	for _, revision := range resp.PipelineExecution.ArtifactRevisions {
+		return *(revision.RevisionId), nil
 	}
 
-	return "", errors.New("source stage not found")
+	return "", errors.New("revision not found")
 }

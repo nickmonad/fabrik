@@ -39,7 +39,7 @@ func Handler(event events.CloudWatchEvent) error {
 	// Pull the pipeline event detail
 	var detail types.PipelineStageDetail
 	if err := json.Unmarshal(event.Detail, &detail); err != nil {
-		log.Errorln("json.Unmarshal", err.Error())
+		log.Errorln("json.Unmarshal:", err.Error())
 		return nil
 	}
 
@@ -47,27 +47,23 @@ func Handler(event events.CloudWatchEvent) error {
 	secureStore := secure.NewAWSSecureStore(sess)
 	token, err := secureStore.Get(types.KeyToken)
 	if err != nil {
-		log.Errorln("parameter.Get", err.Error())
+		log.Errorln("parameter.Get:", err.Error())
 		return nil
 	}
-
-	log.Infoln("about to call manager.GetRepoInfo")
 
 	// Create the pipeline manager and repository
 	manager := pipeline.NewAWSPipelineManager(sess)
 	owner, repoName, err := manager.GetRepoInfo(detail.Pipeline)
 	if err != nil {
-		log.Errorln("error getting repo info", err.Error())
+		log.Errorln("error getting repo info:", err.Error())
 		return nil
 	}
 
 	log := log.WithFields(log.Fields{"pipeline": detail.Pipeline})
 	repo := repo.NewGitHubRepository(log, owner, repoName, token)
 
-	log.Infoln("about to call Process")
-
 	if err := Process(detail, manager, repo); err != nil {
-		log.Errorln("error processing", err.Error())
+		log.Errorln("error processing:", err.Error())
 		return nil
 	}
 
@@ -77,9 +73,8 @@ func Handler(event events.CloudWatchEvent) error {
 // Process reads the pipeline event detail and writes a status back to the
 // source repository.
 func Process(detail types.PipelineStageDetail, manager types.PipelineManager, repo types.Repository) error {
-	log.Infoln("about to call manager.GetRevision")
 	// get current revision
-	revision, err := manager.GetRevision(detail.Pipeline)
+	revision, err := manager.GetRevision(detail.ExecutionId, detail.Pipeline)
 	if err != nil {
 		return err
 	}
