@@ -34,6 +34,9 @@ functions:
         memorySize: 128
         timeout: 300
         role: lambdaAllRole
+        environment:
+            ARTIFACT_STORE:
+                Ref: artifactBucket
         events:
             - stream:
                 type: dynamodb
@@ -61,6 +64,15 @@ functions:
 
 resources:
     Resources:
+        artifactBucket:
+            Type: AWS::S3::Bucket
+            Properties:
+                AccessControl: Private
+                BucketName:
+                    'Fn::Join':
+                        - "-"
+                        - - "Ref": "AWS::StackName"
+                          - "artifact-store"
         dynamoTable:
             Type: AWS::DynamoDB::Table
             Properties:

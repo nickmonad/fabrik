@@ -156,7 +156,7 @@ func Process(log *log.Entry, event types.GitHubEvent, repo types.Repository, man
 	}
 
 	// ammend parameter list with required parameters
-	parameters = append(parameters, requiredParameters(event, repoToken)...)
+	parameters = append(parameters, requiredParameters(event, repoToken, os.Getenv("ARTIFACT_STORE"))...)
 
 	// create or update stack with ref specific parameters
 	if !exists {
@@ -256,8 +256,9 @@ func prepStatus(state, shortHash string) types.GitHubStatus {
 	}
 }
 
-func requiredParameters(event types.GitHubEvent, repoToken string) []types.Parameter {
+func requiredParameters(event types.GitHubEvent, repoToken, artifactStore string) []types.Parameter {
 	required := []types.Parameter{
+		types.Parameter{ParameterKey: "ArtifactStore", ParameterValue: artifactStore},
 		types.Parameter{ParameterKey: "RepoOwner", ParameterValue: event.Repository.Owner.Name},
 		types.Parameter{ParameterKey: "RepoName", ParameterValue: event.Repository.Name},
 		types.Parameter{ParameterKey: "RepoBranch", ParameterValue: parseRef(event.Ref)},
