@@ -51,6 +51,8 @@ func Handler(event events.CloudWatchEvent) error {
 		return nil
 	}
 
+	log.Infoln("about to call manager.GetRepoInfo")
+
 	// Create the pipeline manager and repository
 	manager := pipeline.NewAWSPipelineManager(sess)
 	owner, repoName, err := manager.GetRepoInfo(detail.Pipeline)
@@ -62,18 +64,20 @@ func Handler(event events.CloudWatchEvent) error {
 	log := log.WithFields(log.Fields{"pipeline": detail.Pipeline})
 	repo := repo.NewGitHubRepository(log, owner, repoName, token)
 
+	log.Infoln("about to call Process")
+
 	if err := Process(detail, manager, repo); err != nil {
 		log.Errorln("error processing", err.Error())
 		return nil
 	}
 
-	log.Println(detail.Pipeline, detail.Stage, detail.State)
 	return nil
 }
 
 // Process reads the pipeline event detail and writes a status back to the
 // source repository.
 func Process(detail types.PipelineStageDetail, manager types.PipelineManager, repo types.Repository) error {
+	log.Infoln("about to call manager.GetRevision")
 	// get current revision
 	revision, err := manager.GetRevision(detail.Pipeline)
 	if err != nil {
