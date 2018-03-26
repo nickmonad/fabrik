@@ -6,6 +6,7 @@ provider:
     profile: opolis
     region: ${opt:region, self:custom.defaultRegion}
     stage: ${opt:stage}
+    cfLogs: true
 
 custom:
     defaultRegion: us-west-2
@@ -64,6 +65,16 @@ functions:
 
 resources:
     Resources:
+        # override log group retention policy
+        ListenerLogGroup:
+            Properties:
+                RetentionInDays: 30
+        BuilderLogGroup:
+            Properties:
+                RetentionInDays: 30
+        NotifierLogGroup:
+            Properties:
+                RetentionInDays: 30
         artifactBucket:
             Type: AWS::S3::Bucket
             Properties:
