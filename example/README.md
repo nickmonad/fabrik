@@ -42,9 +42,9 @@ built locally, and pushed to ECR at the path,
 ### [`parameters.json`](./parameters.json)
 
 Defines a set of parameters to set during a particular _invocation_ of the build pipeline. There are three
-invocation types: `dev`, `master`, and `release`. The `dev` invocation occurs for every branch pushed to the
-repository, `master` occurs after a merge into master, and `release` occurs on every tag. The parameters file
-is keyed accordingly, and each set of parameters must be a list of objects in the form:
+invocation types: `development`, `master`, and `release`. The `development` invocation occurs for every branch
+pushed to the repository, `master` occurs after a merge into master, and `release` occurs on every tag.
+The parameters file is keyed accordingly, and each set of parameters must be a list of objects in the form:
 
 ```
 {

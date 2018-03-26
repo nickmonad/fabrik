@@ -124,7 +124,7 @@ func Handler(event events.DynamoDBEvent) error {
 //       else: delete stack
 //       return
 //
-//     prepare context
+//     prepare context and set parameters
 //
 //     create or update stack with parameters
 //     if tag: call UpdatePipeline with tag
@@ -239,10 +239,10 @@ func parseRef(ref string) string {
 	return components[len(components)-1]
 }
 
-func parseParameters(parameters []byte) ([]types.Parameter, error) {
-	parsed := make([]types.Parameter, 0)
+func parseParameters(parameters []byte) (types.ParameterManifest, error) {
+	var parsed types.ParameterManifest
 	if err := json.Unmarshal(parameters, &parsed); err != nil {
-		return nil, err
+		return parsed, err
 	}
 
 	return parsed, nil
@@ -279,10 +279,11 @@ func buildContext(event types.GitHubEvent, repo types.Repository, templatePath, 
 		return nil, nil, err
 	}
 
+	// TODO(ngmiller): Needs to handle dev vs master vs release distinction
 	parameters, err := parseParameters(parameterSpec)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return template, parameters, nil
+	return template, parameters.Development, nil
 }

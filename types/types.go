@@ -48,8 +48,8 @@ type PipelineManager interface {
 	GetRevision(execId, name string) (string, error)
 }
 
-// ParameterStore accesses secure parameters.
-type ParameterStore interface {
+// SecureStore accesses secure parameters.
+type SecureStore interface {
 	Get(key string) (string, error)
 }
 
@@ -80,6 +80,13 @@ type GitHubStatus struct {
 type Parameter struct {
 	ParameterKey   string `json:"ParameterKey"`
 	ParameterValue string `json:"ParameterValue"`
+}
+
+// ParameterManifest defines a common format for expressing a _set_ of stack parameters.
+type ParameterManifest struct {
+	Development []Parameter `json:"development"`
+	Master      []Parameter `json:"master"`
+	Release     []Parameter `json:"release"`
 }
 
 // PipelineStageDetail represents a stage change event metadata
