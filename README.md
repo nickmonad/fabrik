@@ -1,7 +1,7 @@
 build
 -----
 
-Serverless CI/CD
+Serverless orchestration of CI/CD pipelines.
 
 ## Configure
 
@@ -21,7 +21,13 @@ Build the development Docker image
 
 `$ make image`
 
+Install the [`aws`](https://aws.amazon.com/cli/) CLI utility
+
 ## Build
+
+Fetch dependencies
+
+`$ make deps`
 
 Build each Lambda function
 
@@ -29,11 +35,15 @@ Build each Lambda function
 
 ## Deploy
 
-Deploy to Lambda and API Gateway
+Deploy/Update the entire stack defined in `serverless.yml`
 
 `$ make deploy`
 
-### Setting SSM Parameters
+Deploy/Update Lambda functions only
+
+`$ make update`
+
+### SSM Parameters
 
 We utilize AWS SSM for secure parameter storage. Values are encrypted at rest using a KMS key.
 
@@ -48,3 +58,14 @@ $ aws --profile opolis ssm put-parameter \
 ```
 
 *The secret value should first be written to a temporary file to avoid storing the value in shell history.*
+
+The following keys are deployed in production:
+
+|Key|Description|
+|---|-----------|
+|`opolis-build-token`|GitHub OAuth token with `repo` scope|
+|`opolis-build-hmac`|GitHub HMAC key used in webhook configuration|
+
+## Adding a Repository
+
+See [`example/`](./example/)
