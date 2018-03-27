@@ -56,6 +56,11 @@ func (repo *GitHubRepository) Get(ref, path string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 
+	// return 'not found' for 404
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, types.RepoNotFoundError{}
+	}
+
 	// return error for non-200 status code
 	if resp.StatusCode != http.StatusOK {
 		return nil, errors.New(fmt.Sprintf("error fetching %s: %s", path, resp.Status))

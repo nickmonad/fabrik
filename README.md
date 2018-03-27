@@ -39,10 +39,6 @@ Deploy/Update the entire stack defined in `serverless.yml`
 
 `$ make deploy`
 
-Deploy/Update Lambda functions only
-
-`$ make update`
-
 ### SSM Parameters
 
 We utilize AWS SSM for secure parameter storage. Values are encrypted at rest using a KMS key.

@@ -156,25 +156,30 @@ func Process(log *log.Entry, event types.GitHubEvent, repo types.Repository, man
 	// fetch stack and parameter files from repoistory
 	// pipeline.json - CI/CD pipeline stack spec
 	// parameters.json - stack parameters
-	template, parameters, err := buildContext(event, repo, "pipeline.json", "parameters.json")
+	// deploy.json - optional deployment stack
+	context, err := buildContext(event, repo, "pipeline.json", "deploy.json", "parameters.json")
 	if err != nil {
 		return err
 	}
 
+	if context.DeployStackTemplate == nil {
+		log.Warnln("deploy.json not found")
+	}
+
 	// ammend parameter list with required parameters
-	parameters = append(parameters, requiredParameters(event, repoToken, os.Getenv("ARTIFACT_STORE"))...)
+	context.Parameters = append(context.Parameters, requiredParameters(event, repoToken, os.Getenv("ARTIFACT_STORE"))...)
 
 	// create or update stack with ref specific parameters
 	if !exists {
 		// create - pipeline is started automatically when created
 		log.Infoln("stack create", stack)
-		if err := StackOp(log, manager.Create, manager, stack, parameters, template); err != nil {
+		if err := StackOp(log, manager.Create, manager, stack, context.Parameters, context.PipelineTemplate); err != nil {
 			return err
 		}
 	} else {
 		// update - manually start pipeline
 		log.Infoln("stack update", stack)
-		if err := StackOp(log, manager.Update, manager, stack, parameters, template); err != nil {
+		if err := StackOp(log, manager.Update, manager, stack, context.Parameters, context.PipelineTemplate); err != nil {
 			return err
 		}
 
@@ -272,22 +277,39 @@ func requiredParameters(event types.GitHubEvent, repoToken, artifactStore string
 	}
 }
 
-func buildContext(event types.GitHubEvent, repo types.Repository, templatePath, parameterPath string) ([]byte, []types.Parameter, error) {
-	template, err := repo.Get(event.Ref, templatePath)
+func buildContext(event types.GitHubEvent, repo types.Repository, pipelinePath, deployPath, parameterPath string) (types.BuildContext, error) {
+	// pipeline template (required)
+	pipelineTemplate, err := repo.Get(event.Ref, pipelinePath)
 	if err != nil {
-		return nil, nil, err
+		return types.BuildContext{}, err
 	}
 
+	// parameter manifest (required)
 	parameterSpec, err := repo.Get(event.Ref, parameterPath)
 	if err != nil {
-		return nil, nil, err
+		return types.BuildContext{}, err
+	}
+
+	// deployment stack (optional)
+	deployTemplate, err := repo.Get(event.Ref, deployPath)
+	if err != nil {
+		if _, ok := err.(types.RepoNotFoundError); !ok {
+			// only fail if error is anything other than 'not found'
+			return types.BuildContext{}, err
+		}
 	}
 
 	// TODO(ngmiller): Needs to handle dev vs master vs release distinction
 	parameters, err := parseParameters(parameterSpec)
 	if err != nil {
-		return nil, nil, err
+		return types.BuildContext{}, err
 	}
 
-	return template, parameters.Development, nil
+	context := types.BuildContext{
+		PipelineTemplate:    pipelineTemplate,
+		DeployStackTemplate: deployTemplate,
+		Parameters:          parameters.Development,
+	}
+
+	return context, nil
 }

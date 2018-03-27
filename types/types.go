@@ -27,6 +27,21 @@ type Repository interface {
 	Status(sha string, status GitHubStatus) error
 }
 
+// RepoNotFoundError - semantic type to represent '404' from a repo fetch
+type RepoNotFoundError struct{}
+
+func (e RepoNotFoundError) Error() string {
+	return "not found"
+}
+
+// BuildContext represents the templates and parameters required to deploy
+// a pipeline.
+type BuildContext struct {
+	PipelineTemplate    []byte
+	DeployStackTemplate []byte
+	Parameters          []Parameter
+}
+
 // StackManager provides a means of managing infrastructure 'stacks'
 // A stack is a collection of resources typically specified by a version
 // controlled file.

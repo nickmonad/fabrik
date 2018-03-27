@@ -28,12 +28,6 @@ build:
 deploy:
 	@$(RUN) serverless --stage dev deploy
 
-.PHONY: update
-update: build
-	@$(RUN) serverless --stage dev deploy function -f builder
-	@$(RUN) serverless --stage dev deploy function -f listener
-	@$(RUN) serverless --stage dev deploy function -f notifier
-
 .PHONY: shell
 shell:
 	@$(RUN) sh
