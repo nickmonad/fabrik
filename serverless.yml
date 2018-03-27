@@ -94,8 +94,8 @@ resources:
                 - AttributeName: id
                   KeyType: HASH
                 ProvisionedThroughput:
-                    ReadCapacityUnits: 5
-                    WriteCapacityUnits: 5
+                    ReadCapacityUnits: 3
+                    WriteCapacityUnits: 3
                 StreamSpecification:
                     StreamViewType: NEW_IMAGE
                 TimeToLiveSpecification:
