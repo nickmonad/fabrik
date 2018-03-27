@@ -46,6 +46,12 @@ func Handler(event events.DynamoDBEvent) error {
 	sess := session.Must(session.NewSession())
 
 	for _, record := range event.Records {
+		// skip modify and remove events from dynamo
+		if record.EventName != types.DynamoDBEventInsert {
+			log.Warnln("received non INSERT event from dynamo - no action")
+			return nil
+		}
+
 		// parse github event
 		item := record.Change.NewImage
 		eventType := item["type"].String()
@@ -257,15 +263,13 @@ func prepStatus(state, shortHash string) types.GitHubStatus {
 }
 
 func requiredParameters(event types.GitHubEvent, repoToken, artifactStore string) []types.Parameter {
-	required := []types.Parameter{
+	return []types.Parameter{
 		types.Parameter{ParameterKey: "ArtifactStore", ParameterValue: artifactStore},
 		types.Parameter{ParameterKey: "RepoOwner", ParameterValue: event.Repository.Owner.Name},
 		types.Parameter{ParameterKey: "RepoName", ParameterValue: event.Repository.Name},
 		types.Parameter{ParameterKey: "RepoBranch", ParameterValue: parseRef(event.Ref)},
 		types.Parameter{ParameterKey: "RepoToken", ParameterValue: repoToken},
 	}
-
-	return required
 }
 
 func buildContext(event types.GitHubEvent, repo types.Repository, templatePath, parameterPath string) ([]byte, []types.Parameter, error) {

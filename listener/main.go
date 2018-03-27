@@ -13,6 +13,7 @@ import (
 	"hash"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -127,13 +128,17 @@ func EventItem(table, id, eventType, payload string) *dynamodb.PutItemInput {
 		p = buf.String()
 	}
 
+	now := time.Now().Unix()
+	expire := time.Now().Add(time.Hour * 24 * 30).Unix() // now + 30 days
+
 	return &dynamodb.PutItemInput{
 		TableName: aws.String(table),
 		Item: map[string]*dynamodb.AttributeValue{
 			"id":        {S: aws.String(id)},
 			"type":      {S: aws.String(eventType)},
-			"timestamp": {S: aws.String(time.Now().String())},
+			"timestamp": {S: aws.String(strconv.FormatInt(now, 10))},
 			"payload":   {S: aws.String(p)},
+			"ttl":       {N: aws.String(strconv.FormatInt(expire, 10))},
 		},
 	}
 }

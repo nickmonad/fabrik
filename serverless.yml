@@ -98,6 +98,9 @@ resources:
                     WriteCapacityUnits: 5
                 StreamSpecification:
                     StreamViewType: NEW_IMAGE
+                TimeToLiveSpecification:
+                    AttributeName: ttl
+                    Enabled: true
         lambdaAllRole:
             Type: AWS::IAM::Role
             Properties:

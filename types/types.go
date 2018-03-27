@@ -3,6 +3,8 @@ package types
 const (
 	EventTypePush = "push"
 
+	DynamoDBEventInsert = "INSERT"
+
 	GitStateError   = "error"
 	GitStateFailure = "failure"
 	GitStatePending = "pending"
