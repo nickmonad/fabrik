@@ -63,3 +63,23 @@ func (m *AWSPipelineManager) GetRevision(execId, name string) (string, error) {
 
 	return "", errors.New("revision not found")
 }
+
+func (m *AWSPipelineManager) JobSuccess(id string) error {
+	_, err := m.client.PutJobSuccessResult(&codepipeline.PutJobSuccessResultInput{
+		JobId: aws.String(id),
+	})
+
+	return err
+}
+
+func (m *AWSPipelineManager) JobFailure(id, message string) error {
+	_, err := m.client.PutJobFailureResult(&codepipeline.PutJobFailureResultInput{
+		JobId: aws.String(id),
+		FailureDetails: &codepipeline.FailureDetails{
+			Message: aws.String(message),
+			Type:    aws.String(codepipeline.FailureTypeJobFailed),
+		},
+	})
+
+	return err
+}

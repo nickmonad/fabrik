@@ -20,9 +20,11 @@ deps:
 
 .PHONY: build
 build:
+	@mkdir -p bin/lib
 	@$(RUN) $(COMPILE) -o bin/builder builder/main.go
 	@$(RUN) $(COMPILE) -o bin/listener listener/main.go
 	@$(RUN) $(COMPILE) -o bin/notifier notifier/main.go
+	@$(RUN) $(COMPILE) -o bin/lib/s3deployer lib/s3deployer/main.go
 
 .PHONY: deploy
 deploy:

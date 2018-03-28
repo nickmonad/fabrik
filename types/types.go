@@ -63,6 +63,8 @@ type StackOperation func(string, []Parameter, []byte) error
 type PipelineManager interface {
 	GetRepoInfo(name string) (string, string, error)
 	GetRevision(execId, name string) (string, error)
+	JobSuccess(id string) error
+	JobFailure(id, message string) error
 }
 
 // SecureStore accesses secure parameters.

@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
@@ -16,13 +18,16 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-lambda-go/lambdacontext"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
 	log "github.com/sirupsen/logrus"
 )
 
 var (
 	regexCompleted = regexp.MustCompile(`.*_COMPLETE`)
 	regexFailed    = regexp.MustCompile(`.*_FAILED`)
+	regexRollback  = regexp.MustCompile(`.*_ROLLBACK_.*`)
 )
 
 func init() {
@@ -162,8 +167,27 @@ func Process(log *log.Entry, event types.GitHubEvent, repo types.Repository, man
 		return err
 	}
 
-	if context.DeployStackTemplate == nil {
-		log.Warnln("deploy.json not found")
+	// Upload deploy stack template to S3, if necessary
+	if context.DeployStackTemplate != nil {
+		log.Infoln("uploading deploy.json to S3")
+
+		// AWS session
+		sess := session.Must(session.NewSession())
+		key := "deploy/" + event.Repository.Owner.Name + "/" + event.Repository.Name + "/deploy.json"
+		_, err := s3.New(sess).PutObject(&s3.PutObjectInput{
+			Body:   bytes.NewReader(context.DeployStackTemplate),
+			Bucket: aws.String(os.Getenv("ARTIFACT_STORE")),
+			Key:    aws.String(key),
+		})
+
+		if err != nil {
+			return err
+		}
+
+		context.Parameters = append(context.Parameters, types.Parameter{
+			ParameterKey:   "DeployStackLocation",
+			ParameterValue: os.Getenv("ARTIFACT_STORE") + "/" + key,
+		})
 	}
 
 	// ammend parameter list with required parameters
@@ -193,7 +217,7 @@ func Process(log *log.Entry, event types.GitHubEvent, repo types.Repository, man
 }
 
 // StackOp performs the given stack operation (Create or Update), but waits until
-// the operation is either completed or failed.
+// the operation is either completed, failed, or rolled back.
 func StackOp(log *log.Entry, op types.StackOperation, manager types.StackManager, stack string, parameters []types.Parameter, template []byte) error {
 	if err := op(stack, parameters, template); err != nil {
 		return err
@@ -203,6 +227,12 @@ func StackOp(log *log.Entry, op types.StackOperation, manager types.StackManager
 		_, status, err := manager.Status(stack)
 		if err != nil {
 			return err
+		}
+
+		// fail if status comes back as 'rollback' - something failed
+		if regexRollback.MatchString(status) {
+			log.Infoln("stack status", status)
+			return errors.New("stack rollback")
 		}
 
 		// continue waiting if stack status is neither "completed" or "failed"
