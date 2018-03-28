@@ -38,7 +38,6 @@ func Handler(event events.CodePipelineEvent) error {
 
 	id := event.CodePipelineJob.ID
 	data := event.CodePipelineJob.Data
-	creds := data.ArtifactCredentials
 
 	log := log.WithFields(log.Fields{"jobId": id})
 
