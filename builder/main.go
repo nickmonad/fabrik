@@ -27,7 +27,7 @@ import (
 var (
 	regexCompleted = regexp.MustCompile(`.*_COMPLETE`)
 	regexFailed    = regexp.MustCompile(`.*_FAILED`)
-	regexRollback  = regexp.MustCompile(`.*_ROLLBACK_.*`)
+	regexRollback  = regexp.MustCompile(`.*ROLLBACK.*`)
 )
 
 func init() {
