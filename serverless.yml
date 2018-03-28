@@ -201,7 +201,7 @@ resources:
                           - Effect: Allow
                             Action:
                                 - codepipeline:PutJobSuccessResult
-                                - codepipeline:PubJobFailureResult
+                                - codepipeline:PutJobFailureResult
                             Resource: '*'
                           - Effect: Allow
                             Action: s3:*

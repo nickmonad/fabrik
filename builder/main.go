@@ -191,7 +191,8 @@ func Process(log *log.Entry, event types.GitHubEvent, repo types.Repository, man
 	}
 
 	// ammend parameter list with required parameters
-	context.Parameters = append(context.Parameters, requiredParameters(event, repoToken, os.Getenv("ARTIFACT_STORE"))...)
+	context.Parameters = append(
+		context.Parameters, requiredParameters(event, repoToken, os.Getenv("ARTIFACT_STORE"))...)
 
 	// create or update stack with ref specific parameters
 	if !exists {
