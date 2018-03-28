@@ -80,6 +80,9 @@ resources:
         NotifierLogGroup:
             Properties:
                 RetentionInDays: 30
+        S3deployerLogGroup:
+            Properities:
+                RetentionInDays: 30
         artifactBucket:
             Type: AWS::S3::Bucket
             Properties:

@@ -11,7 +11,6 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 
@@ -40,15 +39,6 @@ func Handler(event events.CodePipelineEvent) error {
 	id := event.CodePipelineJob.ID
 	data := event.CodePipelineJob.Data
 	creds := data.ArtifactCredentials
-
-	// get s3 bucket creds from pipeline data
-	session.Must(session.NewSession(&aws.Config{
-		Credentials: credentials.NewStaticCredentials(
-			creds.AccessKeyID,
-			creds.SecretAccessKey,
-			creds.SessionToken,
-		),
-	}))
 
 	log := log.WithFields(log.Fields{"jobId": id})
 
