@@ -25,6 +25,7 @@ build:
 	@$(RUN) $(COMPILE) -o bin/listener listener/main.go
 	@$(RUN) $(COMPILE) -o bin/notifier notifier/main.go
 	@$(RUN) $(COMPILE) -o bin/lib/s3deployer lib/s3deployer/main.go
+	@$(RUN) $(COMPILE) -o bin/lib/s3cleaner lib/s3cleaner/main.go
 
 .PHONY: deploy
 deploy:
