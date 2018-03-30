@@ -104,6 +104,10 @@ func statusUrl(pipeline string) string {
 func mapState(state string) string {
 	if state == types.PipelineStateStarted {
 		return types.GitStatePending
+
+	} else if state == types.PipelineStateResumed {
+		return types.GitStatePending
+
 	} else if state == types.PipelineStateSucceeded {
 		return types.GitStateSuccess
 	}

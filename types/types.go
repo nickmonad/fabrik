@@ -16,6 +16,7 @@ const (
 	KeyToken = "opolis-build-token"
 
 	PipelineStateStarted   = "STARTED"
+	PipelineStateResumed   = "RESUMED"
 	PipelineStateSucceeded = "SUCCEEDED"
 	PipelineStateFailed    = "FAILED"
 )
