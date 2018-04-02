@@ -173,7 +173,7 @@ func Process(log *log.Entry, event types.GitHubEvent, repo types.Repository, man
 
 		// AWS session
 		sess := session.Must(session.NewSession())
-		key := "deploy/" + event.Repository.Owner.Name + "/" + event.Repository.Name + "/deploy.json"
+		key := "deploy/" + event.Repository.Owner.Name + "/" + event.Repository.Name + "/" + event.After + "/deploy.json"
 		_, err := s3.New(sess).PutObject(&s3.PutObjectInput{
 			Body:   bytes.NewReader(context.DeployStackTemplate),
 			Bucket: aws.String(os.Getenv("ARTIFACT_STORE")),
@@ -308,6 +308,16 @@ func requiredParameters(event types.GitHubEvent, repoToken, artifactStore string
 	}
 }
 
+func refType(event types.GitHubEvent) string {
+	if parseRef(event.Ref) == types.GitRefMaster {
+		return types.GitRefMaster
+	} else if types.RegexReleaseRef.MatchString(parseRef(event.Ref)) {
+		return types.GitRefRelease
+	}
+
+	return types.GitRefBranch
+}
+
 func buildContext(event types.GitHubEvent, repo types.Repository, pipelinePath, deployPath, parameterPath string) (types.BuildContext, error) {
 	// pipeline template (required)
 	pipelineTemplate, err := repo.Get(event.Ref, pipelinePath)
@@ -331,15 +341,26 @@ func buildContext(event types.GitHubEvent, repo types.Repository, pipelinePath, 
 	}
 
 	// TODO(ngmiller): Needs to handle dev vs master vs release distinction
-	parameters, err := parseParameters(parameterSpec)
+	parameterManifest, err := parseParameters(parameterSpec)
 	if err != nil {
 		return types.BuildContext{}, err
+	}
+
+	// Default to development parameters, set master or release accordingly
+	parameters := parameterManifest.Development
+
+	if refType(event) == types.GitRefMaster {
+		parameters = parameterManifest.Master
+	}
+
+	if refType(event) == types.GitRefRelease {
+		parameters = parameterManifest.Release
 	}
 
 	context := types.BuildContext{
 		PipelineTemplate:    pipelineTemplate,
 		DeployStackTemplate: deployTemplate,
-		Parameters:          parameters.Development,
+		Parameters:          parameters,
 	}
 
 	return context, nil

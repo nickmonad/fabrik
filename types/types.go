@@ -1,16 +1,20 @@
 package types
 
-const (
-	EventTypePush = "push"
+import "regexp"
 
+const (
 	DynamoDBEventInsert = "INSERT"
 
+	EventTypePush = "push"
+
+	GitContextPrep  = "pipeline/Prep"
+	GitRefBranch    = "branch"
+	GitRefMaster    = "master"
+	GitRefRelease   = "release"
 	GitStateError   = "error"
 	GitStateFailure = "failure"
 	GitStatePending = "pending"
 	GitStateSuccess = "success"
-
-	GitContextPrep = "pipeline/Prep"
 
 	KeyHmac  = "opolis-build-hmac"
 	KeyToken = "opolis-build-token"
@@ -19,6 +23,10 @@ const (
 	PipelineStateResumed   = "RESUMED"
 	PipelineStateSucceeded = "SUCCEEDED"
 	PipelineStateFailed    = "FAILED"
+)
+
+var (
+	RegexReleaseRef = regexp.MustCompile(`v[0-9]+\.[0-9]+\.[0-9]+$`)
 )
 
 // Repository provides a means to fetch data from
