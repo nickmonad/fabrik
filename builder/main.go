@@ -253,7 +253,15 @@ func StackOp(log *log.Entry, op types.StackOperation, manager types.StackManager
 //
 
 func stackName(repo, ref string) string {
-	return fmt.Sprintf("opolis-build-pipeline-%s-%s", repo, parseRef(ref))
+	if refType(ref) == types.GitRefMaster {
+		return fmt.Sprintf("%s-master", repo)
+	}
+
+	if refType(ref) == types.GitRefRelease {
+		return fmt.Sprintf("%s-release", repo)
+	}
+
+	return fmt.Sprintf("%s-%s", repo, parseRef(ref))
 }
 
 func shortHash(hash string) string {
@@ -308,10 +316,10 @@ func requiredParameters(event types.GitHubEvent, repoToken, artifactStore string
 	}
 }
 
-func refType(event types.GitHubEvent) string {
-	if parseRef(event.Ref) == types.GitRefMaster {
+func refType(ref string) string {
+	if parseRef(ref) == types.GitRefMaster {
 		return types.GitRefMaster
-	} else if types.RegexReleaseRef.MatchString(parseRef(event.Ref)) {
+	} else if types.RegexReleaseRef.MatchString(parseRef(ref)) {
 		return types.GitRefRelease
 	}
 
@@ -349,11 +357,11 @@ func buildContext(event types.GitHubEvent, repo types.Repository, pipelinePath, 
 	// Default to development parameters, set master or release accordingly
 	parameters := parameterManifest.Development
 
-	if refType(event) == types.GitRefMaster {
+	if refType(event.Ref) == types.GitRefMaster {
 		parameters = parameterManifest.Master
 	}
 
-	if refType(event) == types.GitRefRelease {
+	if refType(event.Ref) == types.GitRefRelease {
 		parameters = parameterManifest.Release
 	}
 
