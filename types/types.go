@@ -64,9 +64,6 @@ type StackManager interface {
 	UpdateBuild(name, ref string) error
 }
 
-// StackOperation is the function signature for stateful stack operations.
-type StackOperation func(string, []Parameter, []byte) error
-
 // PipelineManger provides a means of interacting with and querying
 // active CI/CD pipelines.
 type PipelineManager interface {

@@ -24,6 +24,11 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const (
+	// Execution timeout in seconds
+	ExecutionTimeout = 300
+)
+
 var (
 	regexCompleted = regexp.MustCompile(`.*_COMPLETE`)
 	regexFailed    = regexp.MustCompile(`.*_FAILED`)
@@ -95,12 +100,21 @@ func Handler(event events.DynamoDBEvent) error {
 		// status - pending
 		repo.Status(event.After, prepStatus(types.GitStatePending, shortHash))
 
-		if err := Process(log, event, repo, stackManager, token); err != nil {
-			log.Errorln("error processing event:", err.Error())
+		// wait until we get a concrete stack status
+		// or 90% of the execution timeout has been used, in which case, restart
+		stop := make(chan struct{})
+		status := Process(log, stop, event, repo, stackManager, token)
 
-			// status - failure
-			repo.Status(event.After, prepStatus(types.GitStateFailure, shortHash))
-
+		select {
+		case err = <-status:
+			if err != nil {
+				log.Errorln("error processing event:", err.Error())
+				repo.Status(event.After, prepStatus(types.GitStateFailure, shortHash))
+				return nil
+			}
+		case <-time.After(0.9 * ExecutionTimeout * time.Second):
+			// restart the execution
+			// TODO
 			return nil
 		}
 
@@ -136,115 +150,145 @@ func Handler(event events.DynamoDBEvent) error {
 //       return
 //
 //     prepare context and set parameters
+//     upload deployment stack, if necessary
 //
 //     create or update stack with parameters
 //     if tag: call UpdatePipeline with tag
-//     call StartPipeline
 //
-func Process(log *log.Entry, event types.GitHubEvent, repo types.Repository, manager types.StackManager, repoToken string) error {
-	// Get stack state, delete if necessary
-	stack := stackName(event.Repository.Name, event.Ref)
-	exists, _, err := manager.Status(stack)
-	if err != nil {
-		return err
-	}
-
-	if event.Deleted {
-		if !exists {
-			log.Warnln("received push/deleted event for non-existant stack")
-			return nil
-		}
-
-		return manager.Delete(stack)
-	}
-
-	// fetch stack and parameter files from repoistory
-	// pipeline.json - CI/CD pipeline stack spec
-	// parameters.json - stack parameters
-	// deploy.json - optional deployment stack
-	context, err := buildContext(event, repo, "pipeline.json", "deploy.json", "parameters.json")
-	if err != nil {
-		return err
-	}
-
-	// Upload deploy stack template to S3, if necessary
-	if context.DeployStackTemplate != nil {
-		log.Infoln("uploading deploy.json to S3")
-
-		// AWS session
-		sess := session.Must(session.NewSession())
-		key := "deploy/" + event.Repository.Owner.Name + "/" + event.Repository.Name + "/" + event.After + "/deploy.json"
-		_, err := s3.New(sess).PutObject(&s3.PutObjectInput{
-			Body:   bytes.NewReader(context.DeployStackTemplate),
-			Bucket: aws.String(os.Getenv("ARTIFACT_STORE")),
-			Key:    aws.String(key),
-		})
-
+//     monitor stack progress
+//     start build pipeline
+//
+func Process(log *log.Entry, stop <-chan struct{}, event types.GitHubEvent, repo types.Repository, manager types.StackManager, repoToken string) <-chan error {
+	result := make(chan error)
+	go func() {
+		// Get stack state, delete if necessary
+		stack := stackName(event.Repository.Name, event.Ref)
+		exists, status, err := manager.Status(stack)
 		if err != nil {
-			return err
+			result <- err
+			return
 		}
 
-		context.Parameters = append(context.Parameters, types.Parameter{
-			ParameterKey:   "DeployStackLocation",
-			ParameterValue: os.Getenv("ARTIFACT_STORE") + "/" + key,
-		})
-	}
+		if event.Deleted {
+			if !exists {
+				log.Warnln("received push/deleted event for non-existant stack")
+				result <- nil
+				return
+			}
 
-	// ammend parameter list with required parameters
-	context.Parameters = append(
-		context.Parameters, requiredParameters(event, repoToken, os.Getenv("ARTIFACT_STORE"))...)
-
-	// create or update stack with ref specific parameters
-	if !exists {
-		// create - pipeline is started automatically when created
-		log.Infoln("stack create", stack)
-		if err := StackOp(log, manager.Create, manager, stack, context.Parameters, context.PipelineTemplate); err != nil {
-			return err
-		}
-	} else {
-		// update - manually start pipeline
-		log.Infoln("stack update", stack)
-		if err := StackOp(log, manager.Update, manager, stack, context.Parameters, context.PipelineTemplate); err != nil {
-			return err
+			result <- manager.Delete(stack)
+			return
 		}
 
-		log.Infoln("start build")
-		if err := manager.StartBuild(stack); err != nil {
-			return err
+		// fetch stack and parameter files from repoistory
+		// pipeline.json - CI/CD pipeline stack spec
+		// parameters.json - stack parameters
+		// deploy.json - optional deployment stack
+		context, err := buildContext(event, repo, "pipeline.json", "deploy.json", "parameters.json")
+		if err != nil {
+			result <- err
+			return
 		}
-	}
 
-	return nil
+		// Upload deploy stack template to S3, if necessary
+		if context.DeployStackTemplate != nil {
+			log.Infoln("uploading deploy.json to S3")
+
+			// AWS session
+			// TODO(ngmiller) abstract out the call to s3
+			sess := session.Must(session.NewSession())
+			key := "deploy/" + event.Repository.Owner.Name + "/" + event.Repository.Name + "/" + event.After + "/deploy.json"
+			_, err := s3.New(sess).PutObject(&s3.PutObjectInput{
+				Body:   bytes.NewReader(context.DeployStackTemplate),
+				Bucket: aws.String(os.Getenv("ARTIFACT_STORE")),
+				Key:    aws.String(key),
+			})
+
+			if err != nil {
+				result <- err
+				return
+			}
+
+			context.Parameters = append(context.Parameters, types.Parameter{
+				ParameterKey:   "DeployStackLocation",
+				ParameterValue: os.Getenv("ARTIFACT_STORE") + "/" + key,
+			})
+		}
+
+		// ammend parameter list with required parameters
+		context.Parameters = append(
+			context.Parameters, requiredParameters(event, repoToken, os.Getenv("ARTIFACT_STORE"))...)
+
+		// create or update stack with ref specific parameters
+		if !exists {
+			// create - pipeline is started automatically when created
+			log.Infoln("stack create", stack)
+			if err := manager.Create(stack, context.Parameters, context.PipelineTemplate); err != nil {
+				result <- err
+				return
+			}
+		} else {
+			// only do an update if we aren't already in progress, otherwise, continue monitoring
+			if statusComplete(status) || statusFailed(status) {
+				log.Infoln("stack update", stack)
+				if err := manager.Update(stack, context.Parameters, context.PipelineTemplate); err != nil {
+					result <- err
+					return
+				}
+			}
+		}
+
+		if err := Watch(log, stop, manager, stack); err != nil {
+			result <- err
+			return
+		}
+
+		if !exists {
+			// start pipeline manually if stack was updated
+			log.Infoln("start build")
+			if err := manager.StartBuild(stack); err != nil {
+				result <- err
+				return
+			}
+		}
+
+		result <- nil
+	}()
+
+	return result
 }
 
-// StackOp performs the given stack operation (Create or Update), but waits until
-// the operation is either completed, failed, or rolled back.
-func StackOp(log *log.Entry, op types.StackOperation, manager types.StackManager, stack string, parameters []types.Parameter, template []byte) error {
-	if err := op(stack, parameters, template); err != nil {
-		return err
-	}
-
+// Watch monitors the state of stack operation, returning an error if there
+// was an error in that operation. This function will continue to monitor the stack in
+// a loop until it receives a signal to stop from the given channel.
+func Watch(log *log.Entry, stop <-chan struct{}, manager types.StackManager, stack string) error {
 	for {
-		_, status, err := manager.Status(stack)
-		if err != nil {
-			return err
-		}
+		select {
+		case <-stop:
+			log.Infoln("watch received stop signal")
+			return nil
+		default:
+			_, status, err := manager.Status(stack)
+			if err != nil {
+				return err
+			}
 
-		// fail if status comes back as 'rollback' - something failed
-		if regexRollback.MatchString(status) {
+			// fail if status comes back as 'rollback' or 'failed' - something failed
+			if statusRollback(status) || statusFailed(status) {
+				log.Infoln("stack status", status)
+				return errors.New("stack rollback or failure")
+			}
+
+			// continue waiting if stack status is neither "completed" or "failed"
+			if !(statusComplete(status) || statusFailed(status)) {
+				log.Infoln("stack status", status)
+				time.Sleep(time.Second)
+				continue
+			}
+
 			log.Infoln("stack status", status)
-			return errors.New("stack rollback")
+			return nil
 		}
-
-		// continue waiting if stack status is neither "completed" or "failed"
-		if !(regexCompleted.MatchString(status) || regexFailed.MatchString(status)) {
-			log.Infoln("stack status", status)
-			time.Sleep(time.Second)
-			continue
-		}
-
-		log.Infoln("stack status", status)
-		return nil
 	}
 }
 
@@ -282,6 +326,18 @@ func statusUrl(logGroup, logStream, shortHash string) string {
 	)
 
 	return base + path
+}
+
+func statusComplete(status string) bool {
+	return regexCompleted.MatchString(status)
+}
+
+func statusRollback(status string) bool {
+	return regexRollback.MatchString(status)
+}
+
+func statusFailed(status string) bool {
+	return regexFailed.MatchString(status)
 }
 
 func parseRef(ref string) string {
@@ -348,7 +404,6 @@ func buildContext(event types.GitHubEvent, repo types.Repository, pipelinePath, 
 		}
 	}
 
-	// TODO(ngmiller): Needs to handle dev vs master vs release distinction
 	parameterManifest, err := parseParameters(parameterSpec)
 	if err != nil {
 		return types.BuildContext{}, err
