@@ -243,7 +243,7 @@ func Process(log *log.Entry, stop <-chan struct{}, event types.GitHubEvent, repo
 			return
 		}
 
-		if !exists {
+		if exists {
 			// start pipeline manually if stack was updated
 			log.Infoln("start build")
 			if err := manager.StartBuild(stack); err != nil {
@@ -265,8 +265,8 @@ func Watch(log *log.Entry, stop <-chan struct{}, manager types.StackManager, sta
 	for {
 		select {
 		case <-stop:
-			log.Infoln("watch received stop signal")
-			return nil
+			log.Infoln("stack monitor received stop signal")
+			return errors.New("received stop signal")
 		default:
 			_, status, err := manager.Status(stack)
 			if err != nil {
