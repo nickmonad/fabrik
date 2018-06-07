@@ -3,6 +3,7 @@ package stack
 import (
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/opolis/build/types"
 
@@ -118,6 +119,18 @@ func (m *AWSStackManager) Status(name string) (bool, string, error) {
 	}
 
 	return true, *(response.Stacks[0].StackStatus), nil
+}
+
+func (m *AWSStackManager) LastUpdated(name string) (*time.Time, error) {
+	response, err := m.client.DescribeStacks(&cloudformation.DescribeStacksInput{
+		StackName: aws.String(name),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return response.Stacks[0].LastUpdatedTime, nil
 }
 
 func (m *AWSStackManager) StartBuild(name string) error {

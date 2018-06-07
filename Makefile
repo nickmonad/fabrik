@@ -1,5 +1,6 @@
 IMAGE = opolis/build:dev
 GOPATH = /go/src/github.com/opolis/build
+FUNC=nothing
 
 RUN = docker run -it --rm \
 	  -v $(HOME)/.aws:/root/.aws \
@@ -26,6 +27,10 @@ build:
 	@$(RUN) $(COMPILE) -o bin/notifier notifier/main.go
 	@$(RUN) $(COMPILE) -o bin/lib/s3deployer lib/s3deployer/main.go
 	@$(RUN) $(COMPILE) -o bin/lib/s3cleaner lib/s3cleaner/main.go
+
+.PHONY: build-func
+build-func:
+	@$(RUN) $(COMPILE) -o bin/$(FUNC) $(FUNC)/main.go
 
 .PHONY: deploy
 deploy:

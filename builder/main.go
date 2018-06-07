@@ -156,7 +156,8 @@ func Handler(event events.DynamoDBEvent) error {
 //     if tag: call UpdatePipeline with tag
 //
 //     monitor stack progress
-//     start build pipeline
+//     if stack was updated:
+//       start pipeline
 //
 func Process(log *log.Entry, stop <-chan struct{}, event types.GitHubEvent, repo types.Repository, manager types.StackManager, repoToken string) <-chan error {
 	result := make(chan error)
@@ -243,8 +244,16 @@ func Process(log *log.Entry, stop <-chan struct{}, event types.GitHubEvent, repo
 			return
 		}
 
-		if exists {
-			// start pipeline manually if stack was updated
+		// start pipeline manually if stack was updated (not created).
+		// since created pipelines start automatically, we don't want to kick it twice,
+		// and if we have a last updated time, we know we're in an updated context
+		lastUpdated, err := manager.LastUpdated(stack)
+		if err != nil {
+			result <- err
+			return
+		}
+
+		if exists && (lastUpdated != nil) {
 			log.Infoln("start build")
 			if err := manager.StartBuild(stack); err != nil {
 				result <- err
@@ -279,8 +288,8 @@ func Watch(log *log.Entry, stop <-chan struct{}, manager types.StackManager, sta
 				return errors.New("stack rollback or failure")
 			}
 
-			// continue waiting if stack status is neither "completed" or "failed"
-			if !(statusComplete(status) || statusFailed(status)) {
+			// continue waiting if stack status isn't complete
+			if !statusComplete(status) {
 				log.Infoln("stack status", status)
 				time.Sleep(time.Second)
 				continue

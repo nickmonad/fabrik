@@ -1,6 +1,9 @@
 package types
 
-import "regexp"
+import (
+	"regexp"
+	"time"
+)
 
 const (
 	DynamoDBEventInsert = "INSERT"
@@ -59,6 +62,8 @@ type StackManager interface {
 	Update(name string, parameters []Parameter, template []byte) error
 	Delete(name string) error
 	Status(name string) (bool, string, error)
+
+	LastUpdated(name string) (*time.Time, error)
 
 	StartBuild(name string) error
 	UpdateBuild(name, ref string) error
