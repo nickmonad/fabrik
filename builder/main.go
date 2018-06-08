@@ -10,13 +10,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/opolis/build/lambda"
 	"github.com/opolis/build/repo"
 	"github.com/opolis/build/secure"
 	"github.com/opolis/build/stack"
 	"github.com/opolis/build/types"
 
 	"github.com/aws/aws-lambda-go/events"
-	"github.com/aws/aws-lambda-go/lambda"
+	awsLambda "github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-lambda-go/lambdacontext"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -40,12 +41,12 @@ func init() {
 }
 
 func main() {
-	lambda.Start(Handler)
+	awsLambda.Start(Handler)
 }
 
 // Handler serves as the integration point between the AWS event and business logic by
 // preparing conrete types to satisfy the Handler's interface.
-func Handler(event events.DynamoDBEvent) error {
+func Handler(dynamoEvent events.DynamoDBEvent) error {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Errorln("recovered from panic:", r)
@@ -55,7 +56,7 @@ func Handler(event events.DynamoDBEvent) error {
 	// AWS session
 	sess := session.Must(session.NewSession())
 
-	for _, record := range event.Records {
+	for _, record := range dynamoEvent.Records {
 		// skip modify and remove events from dynamo
 		if record.EventName != types.DynamoDBEventInsert {
 			log.Warnln("received non INSERT event from dynamo - no action")
@@ -92,8 +93,10 @@ func Handler(event events.DynamoDBEvent) error {
 			return nil
 		}
 
-		// prepare processing dependencies and fire status
+		// prepare processing dependencies
 		stackManager := stack.NewAWSStackManger(log, sess)
+		lambdaManager := lambda.NewAWSLambdaManager(sess)
+
 		repo := repo.NewGitHubRepository(log, event.Repository.Owner.Name, event.Repository.Name, token)
 		shortHash := shortHash(event.After)
 
@@ -113,9 +116,10 @@ func Handler(event events.DynamoDBEvent) error {
 				return nil
 			}
 		case <-time.After(0.9 * ExecutionTimeout * time.Second):
-			// restart the execution
-			// TODO
-			return nil
+			log.Infoln("execution timeout reached, restarting function!")
+			close(stop)
+
+			return lambdaManager.Invoke(lambdacontext.FunctionName, dynamoEvent)
 		}
 
 		// status - ok

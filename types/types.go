@@ -78,6 +78,10 @@ type PipelineManager interface {
 	JobFailure(id, message string) error
 }
 
+type LambdaManager interface {
+	Invoke(name string, payload interface{}) error
+}
+
 // SecureStore accesses secure parameters.
 type SecureStore interface {
 	Get(key string) (string, error)
