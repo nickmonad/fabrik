@@ -19,7 +19,7 @@ to your repository, and adapt as needed.
 Defines the entire CI/CD pipeline as a
 [CloudFormation](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/Welcome.html) template.
 
-Each template is required to accept the following parameters. If any are missing, the prepartion phase
+Each template is *required* to accept the following parameters. If any are missing, the prepartion phase
 of the build system will fail. These parameters are provided by the build system at runtime, you are not
 responsible for specifying them, just including and referencing them in the template.
 
@@ -30,6 +30,7 @@ responsible for specifying them, just including and referencing them in the temp
 |`RepoName`|GitHub repo name|
 |`RepoBranch`|Branch name to build|
 |`RepoToken`|OAuth token with `repo` scope|
+|`Stage`|Used to reference pipeline parameters `development`, `master`, or `release`|
 
 #### Dockerfile
 
