@@ -132,11 +132,11 @@ func Handler(dynamoEvent events.DynamoDBEvent) error {
 // Incoming refs are of the form 'ref/{heads|tag}/{value}'
 //
 // A repository's 'stack' in this context means an infrastructure template (i.e. CloudFormation)
-// defining the CI pipeline and build projects.
+// defining the CI pipeline, build and deployment resources.
 //
-// Each stack is parameterized via a parameters.json file in the repo. Each parameter set
-// is keyed by 'dev', 'master', and 'release' - corresponding to the CodePipeline instance
-// by the same name ('dev' is applied to all non master/tag refs)
+// Each pipeline is parameterized via a parameters.json file in the repo. Each parameter set
+// is keyed by 'development', 'master', and 'release' - corresponding to the CodePipeline instance
+// by the same name ('development' is applied to all non master/tag refs)
 //
 //     if ref is tag:
 //       stack = opolis-build-{repo}-release-pipeline
