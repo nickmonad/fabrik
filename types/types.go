@@ -46,12 +46,11 @@ func (e RepoNotFoundError) Error() string {
 	return "not found"
 }
 
-// BuildContext represents the templates and parameters required to deploy
-// a pipeline.
+// BuildContext represents the template and parameters required
+// to deploy a pipeline.
 type BuildContext struct {
-	PipelineTemplate    []byte
-	DeployStackTemplate []byte
-	Parameters          []Parameter
+	PipelineTemplate []byte
+	Parameters       []Parameter
 }
 
 // StackManager provides a means of managing infrastructure 'stacks'

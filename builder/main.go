@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,9 +18,7 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 	awsLambda "github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-lambda-go/lambdacontext"
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -154,7 +151,6 @@ func Handler(dynamoEvent events.DynamoDBEvent) error {
 //       return
 //
 //     prepare context and set parameters
-//     upload deployment stack, if necessary
 //
 //     create or update stack with parameters
 //     if tag: call UpdatePipeline with tag
@@ -188,36 +184,10 @@ func Process(log *log.Entry, stop <-chan struct{}, event types.GitHubEvent, repo
 		// fetch stack and parameter files from repoistory
 		// pipeline.json - CI/CD pipeline stack spec
 		// parameters.json - stack parameters
-		// deploy.json - optional deployment stack
-		context, err := buildContext(event, repo, "pipeline.json", "deploy.json", "parameters.json")
+		context, err := buildContext(event, repo, "pipeline.json", "parameters.json")
 		if err != nil {
 			result <- err
 			return
-		}
-
-		// Upload deploy stack template to S3, if necessary
-		if context.DeployStackTemplate != nil {
-			log.Infoln("uploading deploy.json to S3")
-
-			// AWS session
-			// TODO(ngmiller) abstract out the call to s3
-			sess := session.Must(session.NewSession())
-			key := "deploy/" + event.Repository.Owner.Name + "/" + event.Repository.Name + "/" + event.After + "/deploy.json"
-			_, err := s3.New(sess).PutObject(&s3.PutObjectInput{
-				Body:   bytes.NewReader(context.DeployStackTemplate),
-				Bucket: aws.String(os.Getenv("ARTIFACT_STORE")),
-				Key:    aws.String(key),
-			})
-
-			if err != nil {
-				result <- err
-				return
-			}
-
-			context.Parameters = append(context.Parameters, types.Parameter{
-				ParameterKey:   "DeployStackLocation",
-				ParameterValue: os.Getenv("ARTIFACT_STORE") + "/" + key,
-			})
 		}
 
 		// ammend parameter list with required parameters
@@ -376,26 +346,38 @@ func prepStatus(state, shortHash string) types.GitHubStatus {
 }
 
 func requiredParameters(event types.GitHubEvent, repoToken, artifactStore string) []types.Parameter {
+	stage := "development"
+	if refType(event.Ref) == types.GitRefMaster {
+		stage = "master"
+	}
+
+	if refType(event.Ref) == types.GitRefRelease {
+		stage = "release"
+	}
+
 	return []types.Parameter{
 		types.Parameter{ParameterKey: "ArtifactStore", ParameterValue: artifactStore},
 		types.Parameter{ParameterKey: "RepoOwner", ParameterValue: event.Repository.Owner.Name},
 		types.Parameter{ParameterKey: "RepoName", ParameterValue: event.Repository.Name},
 		types.Parameter{ParameterKey: "RepoBranch", ParameterValue: parseRef(event.Ref)},
 		types.Parameter{ParameterKey: "RepoToken", ParameterValue: repoToken},
+		types.Parameter{ParameterKey: "Stage", ParameterValue: stage},
 	}
 }
 
 func refType(ref string) string {
-	if parseRef(ref) == types.GitRefMaster {
+	parsed := parseRef(ref)
+
+	if parsed == types.GitRefMaster {
 		return types.GitRefMaster
-	} else if types.RegexReleaseRef.MatchString(parseRef(ref)) {
+	} else if types.RegexReleaseRef.MatchString(parsed) {
 		return types.GitRefRelease
 	}
 
 	return types.GitRefBranch
 }
 
-func buildContext(event types.GitHubEvent, repo types.Repository, pipelinePath, deployPath, parameterPath string) (types.BuildContext, error) {
+func buildContext(event types.GitHubEvent, repo types.Repository, pipelinePath, parameterPath string) (types.BuildContext, error) {
 	// pipeline template (required)
 	pipelineTemplate, err := repo.Get(event.Ref, pipelinePath)
 	if err != nil {
@@ -406,15 +388,6 @@ func buildContext(event types.GitHubEvent, repo types.Repository, pipelinePath, 
 	parameterSpec, err := repo.Get(event.Ref, parameterPath)
 	if err != nil {
 		return types.BuildContext{}, err
-	}
-
-	// deployment stack (optional)
-	deployTemplate, err := repo.Get(event.Ref, deployPath)
-	if err != nil {
-		if _, ok := err.(types.RepoNotFoundError); !ok {
-			// only fail if error is anything other than 'not found'
-			return types.BuildContext{}, err
-		}
 	}
 
 	parameterManifest, err := parseParameters(parameterSpec)
@@ -434,9 +407,8 @@ func buildContext(event types.GitHubEvent, repo types.Repository, pipelinePath, 
 	}
 
 	context := types.BuildContext{
-		PipelineTemplate:    pipelineTemplate,
-		DeployStackTemplate: deployTemplate,
-		Parameters:          parameters,
+		PipelineTemplate: pipelineTemplate,
+		Parameters:       parameters,
 	}
 
 	return context, nil
