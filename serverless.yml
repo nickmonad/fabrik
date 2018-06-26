@@ -96,6 +96,9 @@ resources:
         S3cleanerLogGroup:
             Properties:
                 RetentionInDays: 30
+        StackDashcleanerLogGroup:
+            Properties:
+                RetentionInDays: 30
         artifactBucket:
             Type: AWS::S3::Bucket
             Properties:
