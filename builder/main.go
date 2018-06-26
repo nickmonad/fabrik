@@ -218,16 +218,7 @@ func Process(log *log.Entry, stop <-chan struct{}, event types.GitHubEvent, repo
 			return
 		}
 
-		// start pipeline manually if stack was updated (not created).
-		// since created pipelines start automatically, we don't want to kick it twice,
-		// and if we have a last updated time, we know we're in an updated context
-		lastUpdated, err := manager.LastUpdated(stack)
-		if err != nil {
-			result <- err
-			return
-		}
-
-		if exists && (lastUpdated != nil) {
+		if exists {
 			log.Infoln("start build")
 			if err := manager.StartBuild(stack); err != nil {
 				result <- err
