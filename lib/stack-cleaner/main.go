@@ -79,10 +79,10 @@ func Handler(event types.CloudFormationEvent) error {
 	// wait until we get a concrete stack status
 	// or 90% of the execution timeout has been used, in which case, restart
 	stop := make(chan struct{})
-	status := Process(log, stop, event, repo, stackManager, token)
+	status := Process(log, stop, properties["Stack"], stackManager)
 
 	select {
-	case err = <-status:
+	case err := <-status:
 		if err != nil {
 			log.Errorln("error processing event:", err.Error())
 			response.Status = types.CloudFormationResponseFailed
