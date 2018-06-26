@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"regexp"
 	"strings"
 	"time"
 
@@ -19,18 +18,13 @@ import (
 	awsLambda "github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-lambda-go/lambdacontext"
 	"github.com/aws/aws-sdk-go/aws/session"
+
 	log "github.com/sirupsen/logrus"
 )
 
 const (
 	// Execution timeout in seconds
 	ExecutionTimeout = 300
-)
-
-var (
-	regexCompleted = regexp.MustCompile(`.*_COMPLETE`)
-	regexFailed    = regexp.MustCompile(`.*_FAILED`)
-	regexRollback  = regexp.MustCompile(`.*ROLLBACK.*`)
 )
 
 func init() {
@@ -303,15 +297,15 @@ func statusUrl(logGroup, logStream, shortHash string) string {
 }
 
 func statusComplete(status string) bool {
-	return regexCompleted.MatchString(status)
+	return types.RegexCompleted.MatchString(status)
 }
 
 func statusRollback(status string) bool {
-	return regexRollback.MatchString(status)
+	return types.RegexRollback.MatchString(status)
 }
 
 func statusFailed(status string) bool {
-	return regexFailed.MatchString(status)
+	return types.RegexFailed.MatchString(status)
 }
 
 func parseRef(ref string) string {

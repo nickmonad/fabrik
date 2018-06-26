@@ -1,11 +1,16 @@
 package types
 
 import (
+	"encoding/json"
 	"regexp"
 	"time"
 )
 
 const (
+	CloudFormationRequestDelete   = "Delete"
+	CloudFormationResponseSuccess = "SUCCESS"
+	CloudFormationResponseFailed  = "FAILED"
+
 	DynamoDBEventInsert = "INSERT"
 
 	EventTypePush = "push"
@@ -30,6 +35,11 @@ const (
 
 var (
 	RegexReleaseRef = regexp.MustCompile(`v[0-9]+\.[0-9]+\.[0-9]+$`)
+
+	RegexCompleted  = regexp.MustCompile(`.*_COMPLETE`)
+	RegexInProgress = regexp.MustCompile(`.*_IN_PROGRESS`)
+	RegexFailed     = regexp.MustCompile(`.*_FAILED`)
+	RegexRollback   = regexp.MustCompile(`.*ROLLBACK.*`)
 )
 
 // Repository provides a means to fetch data from
@@ -84,6 +94,30 @@ type LambdaManager interface {
 // SecureStore accesses secure parameters.
 type SecureStore interface {
 	Get(key string) (string, error)
+}
+
+// CloudFormationEvent
+type CloudFormationEvent struct {
+	RequestId             string          `json:"RequestId"`
+	StackId               string          `json:"StackId"`
+	RequestType           string          `json:"RequestType"`
+	ResourceType          string          `json:"ResourceType"`
+	LogicalResourceId     string          `json:"LogicalResourceId"`
+	PhysicalResourceId    string          `json:"PhysicalResourceId"`
+	ResourceProperties    json.RawMessage `json:"ResourceProperties"`
+	OldResourceProperties json.RawMessage `json:"OldResourceProperties"`
+	ResponseURL           string          `json:"ResponseURL"`
+	ServiceToken          string          `json:"ServiceToken"`
+}
+
+// CloudFormationResponse
+type CloudFormationResponse struct {
+	Status             string `json:"Status"`
+	Reason             string `json:"Reason"`
+	StackId            string `json:"StackId"`
+	RequestId          string `json:"RequestId"`
+	LogicalResourceId  string `json:"LogicalResourceId"`
+	PhysicalResourceId string `json:"PhysicalResourceId"`
 }
 
 // GitHubEvent references relevant fields from the push event.

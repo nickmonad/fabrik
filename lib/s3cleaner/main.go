@@ -11,36 +11,10 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 
+	"github.com/opolis/build/types"
+
 	log "github.com/sirupsen/logrus"
 )
-
-const (
-	RequestTypeDelete     = "Delete"
-	ResponseStatusSuccess = "SUCCESS"
-	ResponseStatusFailed  = "FAILED"
-)
-
-type CloudFormationEvent struct {
-	RequestId             string          `json:"RequestId"`
-	StackId               string          `json:"StackId"`
-	RequestType           string          `json:"RequestType"`
-	ResourceType          string          `json:"ResourceType"`
-	LogicalResourceId     string          `json:"LogicalResourceId"`
-	PhysicalResourceId    string          `json:"PhysicalResourceId"`
-	ResourceProperties    json.RawMessage `json:"ResourceProperties"`
-	OldResourceProperties json.RawMessage `json:"OldResourceProperties"`
-	ResponseURL           string          `json:"ResponseURL"`
-	ServiceToken          string          `json:"ServiceToken"`
-}
-
-type CloudFormationResponse struct {
-	Status             string `json:"Status"`
-	Reason             string `json:"Reason"`
-	StackId            string `json:"StackId"`
-	RequestId          string `json:"RequestId"`
-	LogicalResourceId  string `json:"LogicalResourceId"`
-	PhysicalResourceId string `json:"PhysicalResourceId"`
-}
 
 func init() {
 	log.SetFormatter(&log.JSONFormatter{DisableTimestamp: true})
@@ -50,7 +24,7 @@ func main() {
 	lambda.Start(Handler)
 }
 
-func Handler(event CloudFormationEvent) error {
+func Handler(event types.CloudFormationEvent) error {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Errorln("recovered from panic:", r)
@@ -63,18 +37,18 @@ func Handler(event CloudFormationEvent) error {
 	logLocation := lambdacontext.LogGroupName + "/" + lambdacontext.LogStreamName
 
 	// prepare required repsonse parameters
-	response := CloudFormationResponse{
+	response := types.CloudFormationResponse{
 		StackId:            event.StackId,
 		RequestId:          event.RequestId,
 		LogicalResourceId:  event.LogicalResourceId,
 		PhysicalResourceId: event.PhysicalResourceId,
 	}
 
-	if event.RequestType != RequestTypeDelete {
+	if event.RequestType != types.CloudFormationRequestDelete {
 		// ignore non-delete requests
 		log.Infoln("ignoring RequestType", event.RequestType)
 
-		response.Status = ResponseStatusSuccess
+		response.Status = types.CloudFormationResponseSuccess
 		response.PhysicalResourceId = logLocation
 
 		return Response(event.ResponseURL, response)
@@ -83,7 +57,7 @@ func Handler(event CloudFormationEvent) error {
 	// parse properties, get bucket name
 	var properties map[string]string
 	if err := json.Unmarshal(event.ResourceProperties, &properties); err != nil {
-		response.Status = ResponseStatusFailed
+		response.Status = types.CloudFormationResponseFailed
 		response.Reason = logLocation
 		log.Errorln("unable to unmarshal resource properties", err.Error())
 
@@ -97,7 +71,7 @@ func Handler(event CloudFormationEvent) error {
 	})
 
 	if err != nil {
-		response.Status = ResponseStatusFailed
+		response.Status = types.CloudFormationResponseFailed
 		response.Reason = logLocation
 		log.Errorln("unable to list s3 objects", err.Error())
 
@@ -111,7 +85,7 @@ func Handler(event CloudFormationEvent) error {
 		})
 
 		if err != nil {
-			response.Status = ResponseStatusFailed
+			response.Status = types.CloudFormationResponseFailed
 			response.Reason = logLocation
 			log.Errorln("unabled to delete object", err.Error())
 
@@ -119,11 +93,11 @@ func Handler(event CloudFormationEvent) error {
 		}
 	}
 
-	response.Status = ResponseStatusSuccess
+	response.Status = types.CloudFormationResponseSuccess
 	return Response(event.ResponseURL, response)
 }
 
-func Response(url string, response CloudFormationResponse) error {
+func Response(url string, response types.CloudFormationResponse) error {
 	payload, err := json.Marshal(response)
 	if err != nil {
 		return err

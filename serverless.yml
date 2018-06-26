@@ -72,6 +72,11 @@ functions:
         memorySize: 128
         timeout: 300
         role: lambdaAllRole
+    stack-cleaner:
+        handler: bin/lib/stack-cleaner
+        memorySize: 128
+        timeout: 300
+        role: lambdaAllRole
 
 resources:
     Resources:
