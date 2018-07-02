@@ -3,6 +3,10 @@ build
 
 Serverless orchestration of CI/CD pipelines.
 
+## Deployments
+
+* `opolis-build-dev`: `https://dmazo1g957.execute-api.us-west-2.amazonaws.com/dev/event`
+
 ## Configure
 
 Add an `opolis` profile to `~/.aws/credentials`
