@@ -332,19 +332,22 @@ func prepStatus(state, shortHash string) types.GitHubStatus {
 
 func requiredParameters(event types.GitHubEvent, repoToken, artifactStore string) []types.Parameter {
 	stage := "development"
+	branch := parseRef(event.Ref)
+
 	if refType(event.Ref) == types.GitRefMaster {
 		stage = "master"
 	}
 
 	if refType(event.Ref) == types.GitRefRelease {
 		stage = "release"
+		branch = "release"
 	}
 
 	return []types.Parameter{
 		types.Parameter{ParameterKey: "ArtifactStore", ParameterValue: artifactStore},
 		types.Parameter{ParameterKey: "RepoOwner", ParameterValue: event.Repository.Owner.Name},
 		types.Parameter{ParameterKey: "RepoName", ParameterValue: event.Repository.Name},
-		types.Parameter{ParameterKey: "RepoBranch", ParameterValue: parseRef(event.Ref)},
+		types.Parameter{ParameterKey: "RepoBranch", ParameterValue: branch},
 		types.Parameter{ParameterKey: "RepoToken", ParameterValue: repoToken},
 		types.Parameter{ParameterKey: "Stage", ParameterValue: stage},
 	}
