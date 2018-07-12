@@ -175,6 +175,14 @@ func Process(log *log.Entry, stop <-chan struct{}, event types.GitHubEvent, repo
 			return
 		}
 
+		// convention: a push to 'release' that isn't a tag doesn't get built.
+		// This is an issue with codepipeline not understanding how to fetch and build a tag
+		if parseRef(event.Ref) == "release" {
+			log.Warnln("received push to release in a non-tag context, skipping")
+			result <- nil
+			return
+		}
+
 		// fetch stack and parameter files from repoistory
 		// pipeline.json - CI/CD pipeline stack spec
 		// parameters.json - stack parameters
