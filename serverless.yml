@@ -72,6 +72,11 @@ functions:
         memorySize: 128
         timeout: 300
         role: lambdaAllRole
+    slack-notifier:
+        handler: bin/lib/slack-notifier
+        memorySize: 128
+        timeout: 300
+        role: lambdaAllRole
     stack-cleaner:
         handler: bin/lib/stack-cleaner
         memorySize: 128
@@ -83,22 +88,25 @@ resources:
         # override log group retention policy
         ListenerLogGroup:
             Properties:
-                RetentionInDays: 30
+                RetentionInDays: 7
         BuilderLogGroup:
             Properties:
-                RetentionInDays: 30
+                RetentionInDays: 7
         NotifierLogGroup:
             Properties:
-                RetentionInDays: 30
+                RetentionInDays: 7
         S3deployerLogGroup:
             Properties:
-                RetentionInDays: 30
+                RetentionInDays: 7
         S3cleanerLogGroup:
             Properties:
-                RetentionInDays: 30
+                RetentionInDays: 7
+        SlackDashnotifierLogGroup:
+            Properties:
+                RetentionInDays: 7
         StackDashcleanerLogGroup:
             Properties:
-                RetentionInDays: 30
+                RetentionInDays: 7
         artifactBucket:
             Type: AWS::S3::Bucket
             Properties:
