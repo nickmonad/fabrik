@@ -39,10 +39,14 @@
     "private/protocol/query",
     "private/protocol/query/queryutil",
     "private/protocol/rest",
+    "private/protocol/restjson",
+    "private/protocol/restxml",
     "private/protocol/xml/xmlutil",
     "service/cloudformation",
     "service/codepipeline",
     "service/dynamodb",
+    "service/lambda",
+    "service/s3",
     "service/ssm",
     "service/sts"
   ]
@@ -56,9 +60,21 @@
   version = "v1.33.0"
 
 [[projects]]
+  name = "github.com/gorilla/websocket"
+  packages = ["."]
+  revision = "3ff3320c2a1756a3691521efc290b4701575147c"
+  version = "v1.3.0"
+
+[[projects]]
   name = "github.com/jmespath/go-jmespath"
   packages = ["."]
   revision = "0b12d6b5"
+
+[[projects]]
+  name = "github.com/nlopes/slack"
+  packages = ["."]
+  revision = "0db1d5eae1116bf7c8ed96c6749acfbf4daaec3e"
+  version = "v0.3.0"
 
 [[projects]]
   name = "github.com/sirupsen/logrus"
@@ -84,6 +100,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "3e744125e9ca211bbccb51c3796e7ad2ebce48bcaa034a36e72cf19d0bd795c6"
+  inputs-digest = "6662e1570206a4c109dba0a997fe526279112281fb882d77d26df23d93e1b453"
   solver-name = "gps-cdcl"
   solver-version = 1
