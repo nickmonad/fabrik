@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/opolis/build/secure"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -18,6 +20,9 @@ import (
 const (
 	tokenKey  = "bot.slack.token"
 	channelID = "CCDAY0552"
+
+	templateLink  = "https://us-west-2.console.aws.amazon.com/cloudwatch/home?region=us-west-2#logEventViewer:group=%s;stream=%s"
+	templateEvent = "<!channel> Event from *%s* <%s|view on CloudWatch>"
 )
 
 func init() {
@@ -53,7 +58,7 @@ func Handler(event events.CloudwatchLogsEvent) error {
 	}
 
 	for _, logEvent := range logs.LogEvents {
-		if err := PostMessage(token, logs.LogStream, logEvent.Message); err != nil {
+		if err := PostMessage(token, logs.LogGroup, logs.LogStream, logEvent.Message); err != nil {
 			log.Errorln("could not post message:", err.Error())
 			return nil
 		}
@@ -62,17 +67,22 @@ func Handler(event events.CloudwatchLogsEvent) error {
 	return nil
 }
 
-func PostMessage(token, stream, message string) error {
+func PostMessage(token, group, stream, message string) error {
 	// slack session
 	api := slack.New(token)
 
-	msg := "<!channel> Event from *" + stream + "*"
+	event := formatEvent(group, stream)
+
 	attach := slack.Attachment{Text: message}
 	params := slack.PostMessageParameters{
 		Attachments: []slack.Attachment{attach},
 		Markdown:    true,
 	}
 
-	_, _, err := api.PostMessage(channelID, msg, params)
+	_, _, err := api.PostMessage(channelID, event, params)
 	return err
+}
+
+func formatEvent(group, stream string) string {
+	return fmt.Sprintf(templateEvent, stream, fmt.Sprintf(templateLink, group, stream))
 }
