@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"github.com/opolis/build/pipeline"
 
@@ -182,6 +183,10 @@ func deployBuild(sess *session.Session, bucket string, buildArtifact io.ReadClos
 		body.Close()
 
 		contentType := http.DetectContentType(content)
+		// manual override for svg content
+		if strings.HasSuffix(key, ".svg") {
+			contentType = "image/svg+xml"
+		}
 
 		_, err = s3.New(sess).PutObject(&s3.PutObjectInput{
 			Body:        bytes.NewReader(content),
