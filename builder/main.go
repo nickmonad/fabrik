@@ -76,6 +76,12 @@ func Handler(dynamoEvent events.DynamoDBEvent) error {
 			"repo":   event.Repository.Name,
 		})
 
+		// do nothing if branch contains NOBUILD
+		if strings.Contains(event.Ref, "NOBUILD") {
+			log.Warnln("received event ref requests no build - no action")
+			return nil
+		}
+
 		// fetch secure repo token
 		secureStore := secure.NewAWSSecureStore(sess)
 		token, err := secureStore.Get(types.KeyToken)
