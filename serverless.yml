@@ -62,6 +62,18 @@ functions:
                             - STARTED
                             - SUCCEEDED
                             - FAILED
+    ecs-watcher:
+        handler: bin/lib/ecs-watcher
+        memorySize: 128
+        timeout: 30
+        role: lambdaAllRole
+        events:
+            - cloudwatchEvent:
+                event:
+                    source:
+                        - "aws.ecs"
+                    detail-type:
+                        - "ECS Task State Change"
     s3deployer:
         handler: bin/lib/s3deployer
         memorySize: 128
@@ -93,6 +105,9 @@ resources:
             Properties:
                 RetentionInDays: 7
         NotifierLogGroup:
+            Properties:
+                RetentionInDays: 7
+        EcsDashwatcherLogGroup:
             Properties:
                 RetentionInDays: 7
         S3deployerLogGroup:
