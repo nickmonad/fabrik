@@ -13,6 +13,10 @@ const (
 
 	DynamoDBEventInsert = "INSERT"
 
+	EcsStateRunning  = "RUNNING"
+	EcsStateStopped  = "STOPPED"
+	EcsFailureReason = "Essential container in task exited"
+
 	EventTypePush = "push"
 
 	GitContextPrep  = "pipeline/Prep"
@@ -76,6 +80,8 @@ type StackManager interface {
 
 	StartBuild(name string) error
 	UpdateBuild(name, ref string) error
+
+	CancelUpdate(name string) error
 }
 
 // PipelineManger provides a means of interacting with and querying
@@ -141,6 +147,15 @@ type GitHubStatus struct {
 	TargetUrl   string `json:"target_url"`
 	Description string `json:"description"`
 	Context     string `json:"context"`
+}
+
+// ECSEvent
+type ECSEvent struct {
+	Containers []struct {
+		Name       string `json:"name"`
+		LastStatus string `json:"lastStatus"`
+	} `json:"containers"`
+	StoppedReason string `json:"stoppedReason,omitempty"`
 }
 
 // Parameter defines a common format for expressing stack parameters.

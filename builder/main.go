@@ -91,7 +91,7 @@ func Handler(dynamoEvent events.DynamoDBEvent) error {
 		}
 
 		// prepare processing dependencies
-		stackManager := stack.NewAWSStackManger(log, sess)
+		stackManager := stack.NewAWSStackManager(log, sess)
 		lambdaManager := lambda.NewAWSLambdaManager(sess)
 
 		repo := repo.NewGitHubRepository(log, event.Repository.Owner.Name, event.Repository.Name, token)

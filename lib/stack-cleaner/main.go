@@ -45,7 +45,7 @@ func Handler(event types.CloudFormationEvent) error {
 	logLocation := lambdacontext.LogGroupName + "/" + lambdacontext.LogStreamName
 
 	// prepare processing dependencies
-	stackManager := stack.NewAWSStackManger(log, sess)
+	stackManager := stack.NewAWSStackManager(log, sess)
 	lambdaManager := lambda.NewAWSLambdaManager(sess)
 
 	// prepare required repsonse parameters

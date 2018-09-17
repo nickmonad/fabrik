@@ -30,7 +30,7 @@ type AWSStackManager struct {
 	log      *log.Entry
 }
 
-func NewAWSStackManger(log *log.Entry, session *session.Session) *AWSStackManager {
+func NewAWSStackManager(log *log.Entry, session *session.Session) *AWSStackManager {
 	return &AWSStackManager{
 		client:   cloudformation.New(session),
 		pipeline: codepipeline.New(session),
@@ -148,6 +148,14 @@ func (m *AWSStackManager) StartBuild(name string) error {
 
 func (m *AWSStackManager) UpdateBuild(name, ref string) error {
 	return errors.New("not implemented")
+}
+
+func (m *AWSStackManager) CancelUpdate(name string) error {
+	_, err := m.client.CancelUpdateStack(&cloudformation.CancelUpdateStackInput{
+		StackName: aws.String(name),
+	})
+
+	return err
 }
 
 //
