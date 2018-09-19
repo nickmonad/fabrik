@@ -8,11 +8,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/codepipeline"
 )
 
-const (
-	ActionNameGitHub = "GitHub"
-	StageNameSource  = "Source"
-)
-
 type AWSPipelineManager struct {
 	client *codepipeline.CodePipeline
 }
@@ -32,18 +27,15 @@ func (m *AWSPipelineManager) GetRepoInfo(name string) (string, string, error) {
 		return "", "", err
 	}
 
-	for _, stage := range resp.Pipeline.Stages {
-		if *(stage.Name) == StageNameSource {
-			if len(stage.Actions) == 0 {
-				return "", "", errors.New("no source stage actions")
-			}
+	action := resp.Pipeline.Stages[0].Actions[0]
+	provider := action.ActionTypeId.Provider
 
-			action := stage.Actions[0]
-			return *(action.Configuration["Owner"]), *(action.Configuration["Repo"]), nil
-		}
+	// TODO: source provider is not guaranteed to GitHub in a generalized context
+	if *provider != "GitHub" {
+		return "", "", errors.New("source action provider is not GitHub")
 	}
 
-	return "", "", errors.New("source stage not found")
+	return *(action.Configuration["Owner"]), *(action.Configuration["Repo"]), nil
 }
 
 func (m *AWSPipelineManager) GetRevision(execId, name string) (string, error) {

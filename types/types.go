@@ -19,7 +19,7 @@ const (
 
 	EventTypePush = "push"
 
-	GitContextPrep  = "pipeline/Prep"
+	GitContextPrep  = "pipeline/0-prep"
 	GitRefBranch    = "branch"
 	GitRefMaster    = "master"
 	GitRefRelease   = "release"
