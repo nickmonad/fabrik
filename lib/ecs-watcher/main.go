@@ -76,7 +76,7 @@ func Handler(raw events.CloudWatchEvent) error {
 			return nil
 		}
 
-		if err := PostMessage(token, event.Containers[0].Name); err != nil {
+		if err := PostMessage(token, event.Containers[0].Name, event.TaskArn); err != nil {
 			log.Errorln("error posting message to slack:", err.Error())
 			return nil
 		}
@@ -85,11 +85,11 @@ func Handler(raw events.CloudWatchEvent) error {
 	return nil
 }
 
-func PostMessage(token, stack string) error {
+func PostMessage(token, stack, taskArn string) error {
 	// slack session
 	api := slack.New(token)
 
-	msg := fmt.Sprintf("<!channel> Container failed to start for *%s* - Rolling back stack update", stack)
+	msg := fmt.Sprintf("<!channel> Container failed to start for *%s* (%s)", stack, taskArn)
 	params := slack.PostMessageParameters{
 		Markdown: true,
 	}

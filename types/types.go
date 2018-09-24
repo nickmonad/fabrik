@@ -152,10 +152,12 @@ type GitHubStatus struct {
 // ECSEvent
 type ECSEvent struct {
 	Containers []struct {
-		Name       string `json:"name"`
-		LastStatus string `json:"lastStatus"`
+		Name         string `json:"name"`
+		ContainerArn string `json:"containerArn"`
+		LastStatus   string `json:"lastStatus"`
 	} `json:"containers"`
 	StoppedReason string `json:"stoppedReason,omitempty"`
+	TaskArn       string `json:"taskArn"`
 }
 
 // Parameter defines a common format for expressing stack parameters.
