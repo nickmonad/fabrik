@@ -354,7 +354,7 @@ func requiredParameters(event types.GitHubEvent, repoToken, artifactStore string
 
 	if refType(event.Ref) == types.GitRefRelease {
 		stage = "release"
-		branch = "release"
+		branch = "master"
 	}
 
 	return []types.Parameter{
