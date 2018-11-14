@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/opolis/build/types"
+	"github.com/ngmiller/fabrik/types"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"

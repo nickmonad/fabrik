@@ -1,18 +1,15 @@
-build
+fabrik
 =====
 
-Serverless orchestration of CI/CD pipelines.
-
-## Deployments
-
-* `opolis-build-dev`: `https://dmazo1g957.execute-api.us-west-2.amazonaws.com/dev/event`
+Serverless orchestration of CI/CD pipelines in an infrastructure-as-code context.
 
 ## Configure
 
-Add an `opolis` profile to `~/.aws/credentials`
+Add a profile to `~/.aws/credentials` that will serve as your fabrik deployment identity in AWS. This should
+be a set of access credentials that have administrator privileges.
 
 ```
-[opolis]
+[fabrik]
 aws_access_key_id = AKIA...
 aws_secret_access_key = O4vew...
 region = us-west-2
@@ -63,8 +60,8 @@ The following keys are deployed in production:
 
 |Key|Description|
 |---|-----------|
-|`opolis-build-token`|GitHub OAuth token with `repo` scope|
-|`opolis-build-hmac`|GitHub HMAC key used in webhook configuration|
+|`fabrik.github.hmac`|GitHub OAuth token with `repo` scope|
+|`fabrik.github.token`|GitHub HMAC key used in webhook configuration|
 
 ## Adding a Repository
 

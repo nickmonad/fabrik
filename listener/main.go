@@ -17,8 +17,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/opolis/build/secure"
-	"github.com/opolis/build/types"
+	"github.com/ngmiller/fabrik/secure"
+	"github.com/ngmiller/fabrik/types"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"

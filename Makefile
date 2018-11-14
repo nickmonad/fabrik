@@ -1,6 +1,6 @@
-IMAGE = opolis/build:dev
-GOPATH = /go/src/github.com/opolis/build
-FUNC=nothing
+IMAGE = fabrik:build
+GOPATH = /go/src/github.com/ngmiller/fabrik
+FUNC = nothing
 
 RUN = docker run -it --rm \
 	  -v $(HOME)/.aws:/root/.aws \
@@ -9,15 +9,16 @@ RUN = docker run -it --rm \
 	  -w $(GOPATH) \
 	  $(IMAGE)
 
+# Compilation flags for AWS Lambda
 COMPILE = env GOOS=linux go build -ldflags="-s -w"
 
 .PHONY: image
 image:
-	@docker build -t $(IMAGE) .
+	@docker build --no-cache -t $(IMAGE) .
 
 .PHONY: deps
 deps:
-	@$(RUN) dep ensure
+	@$(RUN) dep ensure -v
 
 .PHONY: build
 build:
@@ -25,11 +26,12 @@ build:
 	@$(RUN) $(COMPILE) -o bin/builder builder/main.go
 	@$(RUN) $(COMPILE) -o bin/listener listener/main.go
 	@$(RUN) $(COMPILE) -o bin/notifier notifier/main.go
-	@$(RUN) $(COMPILE) -o bin/lib/ecs-watcher lib/ecs-watcher/main.go
-	@$(RUN) $(COMPILE) -o bin/lib/s3deployer lib/s3deployer/main.go
-	@$(RUN) $(COMPILE) -o bin/lib/s3cleaner lib/s3cleaner/main.go
-	@$(RUN) $(COMPILE) -o bin/lib/slack-notifier lib/slack-notifier/main.go
 	@$(RUN) $(COMPILE) -o bin/lib/stack-cleaner lib/stack-cleaner/main.go
+
+# @$(RUN) $(COMPILE) -o bin/lib/ecs-watcher lib/ecs-watcher/main.go
+# @$(RUN) $(COMPILE) -o bin/lib/s3deployer lib/s3deployer/main.go
+# @$(RUN) $(COMPILE) -o bin/lib/s3cleaner lib/s3cleaner/main.go
+# @$(RUN) $(COMPILE) -o bin/lib/slack-notifier lib/slack-notifier/main.go
 
 .PHONY: build-func
 build-func:

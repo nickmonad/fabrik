@@ -1,15 +1,12 @@
-service: opolis-build
+service: fabrik
 
 provider:
     name: aws
     runtime: go1.x
-    profile: opolis
-    region: ${opt:region, self:custom.defaultRegion}
+    profile: ${opt:profile, 'fabrik'}
+    region: ${opt:region, 'us-west-2'}
     stage: ${opt:stage}
     cfLogs: true
-
-custom:
-    defaultRegion: us-west-2
 
 package:
     exclude:
@@ -34,7 +31,7 @@ functions:
         handler: bin/builder
         memorySize: 128
         timeout: 300
-        role: lambdaAllRole
+        role: lambdaRole
         environment:
             ARTIFACT_STORE:
                 Ref: artifactBucket
@@ -49,7 +46,7 @@ functions:
         handler: bin/notifier
         memorySize: 128
         timeout: 30
-        role: lambdaAllRole
+        role: lambdaRole
         events:
             - cloudwatchEvent:
                 event:
@@ -62,38 +59,11 @@ functions:
                             - STARTED
                             - SUCCEEDED
                             - FAILED
-    ecs-watcher:
-        handler: bin/lib/ecs-watcher
-        memorySize: 128
-        timeout: 30
-        role: lambdaAllRole
-        events:
-            - cloudwatchEvent:
-                event:
-                    source:
-                        - "aws.ecs"
-                    detail-type:
-                        - "ECS Task State Change"
-    s3deployer:
-        handler: bin/lib/s3deployer
-        memorySize: 128
-        timeout: 300
-        role: lambdaS3DeployerRole
-    s3cleaner:
-        handler: bin/lib/s3cleaner
-        memorySize: 128
-        timeout: 300
-        role: lambdaAllRole
-    slack-notifier:
-        handler: bin/lib/slack-notifier
-        memorySize: 128
-        timeout: 300
-        role: lambdaAllRole
     stack-cleaner:
         handler: bin/lib/stack-cleaner
         memorySize: 128
         timeout: 300
-        role: lambdaAllRole
+        role: lambdaRole
 
 resources:
     Resources:
@@ -105,18 +75,6 @@ resources:
             Properties:
                 RetentionInDays: 7
         NotifierLogGroup:
-            Properties:
-                RetentionInDays: 7
-        EcsDashwatcherLogGroup:
-            Properties:
-                RetentionInDays: 7
-        S3deployerLogGroup:
-            Properties:
-                RetentionInDays: 7
-        S3cleanerLogGroup:
-            Properties:
-                RetentionInDays: 7
-        SlackDashnotifierLogGroup:
             Properties:
                 RetentionInDays: 7
         StackDashcleanerLogGroup:
@@ -148,11 +106,11 @@ resources:
                 TimeToLiveSpecification:
                     AttributeName: ttl
                     Enabled: true
-        lambdaAllRole:
+        lambdaRole:
             Type: AWS::IAM::Role
             Properties:
                 Path: "/"
-                RoleName: opolis-build-lambda-all
+                RoleName: fabrik-lambda-all
                 AssumeRolePolicyDocument:
                     Version: '2012-10-17'
                     Statement:
@@ -170,81 +128,16 @@ resources:
                           - Effect: Allow
                             Action: '*'
                             Resource: '*'
-        lambdaRole:
-            Type: AWS::IAM::Role
-            Properties:
-                Path: "/"
-                RoleName: opolis-build-lambda
-                AssumeRolePolicyDocument:
-                    Version: '2012-10-17'
-                    Statement:
-                    - Effect: Allow
-                      Principal:
-                        Service:
-                        - lambda.amazonaws.com
-                      Action:
-                        - sts:AssumeRole
-                Policies:
-                    - PolicyName: root
-                      PolicyDocument:
-                          Version: '2012-10-17'
-                          Statement:
-                          - Effect: Allow
-                            Action:
-                              - logs:CreateLogGroup
-                              - logs:CreateLogStream
-                              - logs:PutLogEvents
-                            Resource:
-                                - "arn:aws:logs:*:*:log-group:/aws/lambda/*:*:*"
-                          - Effect: Allow
-                            Action: ssm:GetParameter
-                            Resource:
-                                - "arn:aws:ssm:*:*:parameter/opolis-build-token"
-                                - "arn:aws:ssm:*:*:parameter/opolis-build-hmac"
-                          - Effect: Allow
-                            Action: kms:Decrypt
-                            Resource:
-                                - "arn:aws:kms:*:*:key/344d9fba-07d2-45c8-9bde-2356aaedc6c3"
-                          - Effect: Allow
-                            Action: dynamodb:*
-                            Resource:
-                                - "Fn::Join":
-                                    - "/"
-                                    - - "arn:aws:dynamodb:*:*:table"
-                                      - "Ref": "dynamoTable"
-                                - "Fn::Join":
-                                    - "/"
-                                    - - "arn:aws:dynamodb:*:*:table"
-                                      - "Ref": "dynamoTable"
-                                      - "stream/*"
-        lambdaS3DeployerRole:
-            Type: AWS::IAM::Role
-            Properties:
-                Path: "/"
-                RoleName: opolis-build-lambda-s3-deployer
-                AssumeRolePolicyDocument:
-                    Version: '2012-10-17'
-                    Statement:
-                    - Effect: Allow
-                      Principal:
-                        Service:
-                        - lambda.amazonaws.com
-                      Action:
-                        - sts:AssumeRole
-                Policies:
-                    - PolicyName: root
-                      PolicyDocument:
-                          Version: '2012-10-17'
-                          Statement:
-                          - Effect: Allow
-                            Action: logs:*
-                            Resource:
-                                - "arn:aws:logs:*:*:*"
-                          - Effect: Allow
-                            Action:
-                                - codepipeline:PutJobSuccessResult
-                                - codepipeline:PutJobFailureResult
-                            Resource: '*'
-                          - Effect: Allow
-                            Action: s3:*
-                            Resource: '*'
+#     ecs-watcher:
+#         handler: bin/lib/ecs-watcher
+#         memorySize: 128
+#         timeout: 30
+#         role: lambdaRole
+#         events:
+#             - cloudwatchEvent:
+#                 event:
+#                     source:
+#                         - "aws.ecs"
+#                     detail-type:
+#                         - "ECS Task State Change"
+

@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/opolis/build/lambda"
-	"github.com/opolis/build/repo"
-	"github.com/opolis/build/secure"
-	"github.com/opolis/build/stack"
-	"github.com/opolis/build/types"
+	"github.com/ngmiller/fabrik/lambda"
+	"github.com/ngmiller/fabrik/repo"
+	"github.com/ngmiller/fabrik/secure"
+	"github.com/ngmiller/fabrik/stack"
+	"github.com/ngmiller/fabrik/types"
 
 	"github.com/aws/aws-lambda-go/events"
 	awsLambda "github.com/aws/aws-lambda-go/lambda"
@@ -135,15 +135,15 @@ func Handler(dynamoEvent events.DynamoDBEvent) error {
 // defining the CI pipeline, build and deployment resources.
 //
 // Each pipeline is parameterized via a parameters.json file in the repo. Each parameter set
-// is keyed by 'development', 'master', and 'release' - corresponding to the CodePipeline instance
+// is keyed by 'development', 'staging', and 'production' - corresponding to the CodePipeline instance
 // by the same name ('development' is applied to all non master/tag refs)
 //
 //     if ref is tag:
-//       stack = opolis-build-{repo}-release-pipeline
+//       stack = {repo}-production
 //     if ref = 'master':
-//       stack = opolis-build-{repo}-master-pipeline
+//       stack = {repo}-staging
 //     else:
-//       stack = opolis-build-{repo}-{ref}-pipeline
+//       stack = {repo}-{ref}
 //
 //     if event.deleted:
 //       if not exists(stack): warn and skip

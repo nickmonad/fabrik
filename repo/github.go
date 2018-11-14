@@ -9,7 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/opolis/build/types"
+	"github.com/ngmiller/fabrik/types"
 
 	log "github.com/sirupsen/logrus"
 )

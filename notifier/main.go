@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/opolis/build/pipeline"
-	"github.com/opolis/build/repo"
-	"github.com/opolis/build/secure"
-	"github.com/opolis/build/types"
+	"github.com/ngmiller/fabrik/pipeline"
+	"github.com/ngmiller/fabrik/repo"
+	"github.com/ngmiller/fabrik/secure"
+	"github.com/ngmiller/fabrik/types"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"

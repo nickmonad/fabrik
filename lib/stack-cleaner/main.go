@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/opolis/build/lambda"
-	"github.com/opolis/build/stack"
-	"github.com/opolis/build/types"
+	"github.com/ngmiller/fabrik/lambda"
+	"github.com/ngmiller/fabrik/stack"
+	"github.com/ngmiller/fabrik/types"
 
 	awsLambda "github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-lambda-go/lambdacontext"
