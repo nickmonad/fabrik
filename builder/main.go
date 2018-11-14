@@ -136,7 +136,7 @@ func Handler(dynamoEvent events.DynamoDBEvent) error {
 //
 // Each pipeline is parameterized via a parameters.json file in the repo. Each parameter set
 // is keyed by 'development', 'staging', and 'production' - corresponding to the CodePipeline instance
-// by the same name ('development' is applied to all non master/tag refs)
+// by the same name ('development' parameters are applied to all non master/tag refs)
 //
 //     if ref is tag:
 //       stack = {repo}-production
@@ -178,14 +178,6 @@ func Process(log *log.Entry, stop <-chan struct{}, event types.GitHubEvent, repo
 			}
 
 			result <- manager.Delete(stack)
-			return
-		}
-
-		// convention: a push to 'release' that isn't a tag doesn't get built.
-		// This is an issue with codepipeline not understanding how to fetch and build a tag
-		if parseRef(event.Ref) == "release" {
-			log.Warnln("received push to release in a non-tag context, skipping")
-			result <- nil
 			return
 		}
 
@@ -280,11 +272,11 @@ func Watch(log *log.Entry, stop <-chan struct{}, manager types.StackManager, sta
 
 func stackName(repo, ref string) string {
 	if refType(ref) == types.GitRefMaster {
-		return fmt.Sprintf("%s-master", repo)
+		return fmt.Sprintf("%s-staging", repo)
 	}
 
-	if refType(ref) == types.GitRefRelease {
-		return fmt.Sprintf("%s-release", repo)
+	if refType(ref) == types.GitRefTag {
+		return fmt.Sprintf("%s-production", repo)
 	}
 
 	return fmt.Sprintf("%s-%s", repo, parseRef(ref))
@@ -349,11 +341,11 @@ func requiredParameters(event types.GitHubEvent, repoToken, artifactStore string
 	branch := parseRef(event.Ref)
 
 	if refType(event.Ref) == types.GitRefMaster {
-		stage = "master"
+		stage = "staging"
 	}
 
-	if refType(event.Ref) == types.GitRefRelease {
-		stage = "release"
+	if refType(event.Ref) == types.GitRefTag {
+		stage = "production"
 		branch = "master"
 	}
 
@@ -372,8 +364,8 @@ func refType(ref string) string {
 
 	if parsed == types.GitRefMaster {
 		return types.GitRefMaster
-	} else if types.RegexReleaseRef.MatchString(parsed) {
-		return types.GitRefRelease
+	} else if types.RegexTagRef.MatchString(parsed) {
+		return types.GitRefTag
 	}
 
 	return types.GitRefBranch
@@ -397,15 +389,15 @@ func buildContext(event types.GitHubEvent, repo types.Repository, pipelinePath, 
 		return types.BuildContext{}, err
 	}
 
-	// Default to development parameters, set master or release accordingly
+	// Default to development parameters, set staging or production accordingly
 	parameters := parameterManifest.Development
 
 	if refType(event.Ref) == types.GitRefMaster {
-		parameters = parameterManifest.Master
+		parameters = parameterManifest.Staging
 	}
 
-	if refType(event.Ref) == types.GitRefRelease {
-		parameters = parameterManifest.Release
+	if refType(event.Ref) == types.GitRefTag {
+		parameters = parameterManifest.Production
 	}
 
 	context := types.BuildContext{

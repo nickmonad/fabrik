@@ -22,7 +22,7 @@ const (
 	GitContextPrep  = "fabrik/0-prep"
 	GitRefBranch    = "branch"
 	GitRefMaster    = "master"
-	GitRefRelease   = "release"
+	GitRefTag       = "tag"
 	GitStateError   = "error"
 	GitStateFailure = "failure"
 	GitStatePending = "pending"
@@ -38,7 +38,7 @@ const (
 )
 
 var (
-	RegexReleaseRef = regexp.MustCompile(`v[0-9]+\.[0-9]+\.[0-9]+$`)
+	RegexTagRef = regexp.MustCompile(`v[0-9]+\.[0-9]+\.[0-9]+$`)
 
 	RegexCompleted  = regexp.MustCompile(`.*_COMPLETE`)
 	RegexInProgress = regexp.MustCompile(`.*_IN_PROGRESS`)
@@ -169,8 +169,8 @@ type Parameter struct {
 // ParameterManifest defines a common format for expressing a _set_ of stack parameters.
 type ParameterManifest struct {
 	Development []Parameter `json:"development"`
-	Master      []Parameter `json:"master"`
-	Release     []Parameter `json:"release"`
+	Staging     []Parameter `json:"staging"`
+	Production  []Parameter `json:"production"`
 }
 
 // PipelineStageDetail represents a stage change event metadata
