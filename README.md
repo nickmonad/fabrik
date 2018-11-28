@@ -10,6 +10,9 @@ other deployments of the same service, and most importantly, *reliable*.
 
 Created with :heart: at [Opolis](https://opolis.co) in Colorado.
 
+Please note these docs are still very much a work in progress. Let me know where there are gaps, or where
+more clarification is needed by opening an issue!
+
 ## Getting Started
 
 Before setting up Fabrik in your AWS account, it's important to know that it isn't designed to be a "plug-and-play"
@@ -146,8 +149,9 @@ endpoint on your GitHub repositories.**
 
 ## Adding a Repository
 
-In order for a push to a GitHub repository to be process by Fabrik, you must first
-configure a webhook for your target repo.
+In order for a push to a GitHub repository to be processed by Fabrik, you must first
+configure a webhook for your target repo and add the required files.
+See [Adding a Repository](./docs/adding-a-repo.md).
 
 ## Let's Go!
 
