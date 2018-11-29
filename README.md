@@ -22,7 +22,7 @@ framework and set of conventions to take that knowledge, and turn it into a repe
 
 At a minimum, Fabrik assumes you are deploying to AWS, and have a basic working knowledge of CloudFormation.
 If you haven't spent much time with CloudFormation, don't worry, I try to explain the high-level concepts where
-appropriate in the [examples](./examples/).
+appropriate in the [examples](./docs/examples.md).
 
 The CloudFormation [Resource and Property Type Reference](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-template-resource-type-ref.html)
 will be your best friend. Anything CloudFormation supports, Fabrik supports.
@@ -156,7 +156,7 @@ See [Adding a Repository](./docs/adding-a-repo.md).
 ## Let's Go!
 
 Now that Fabrik has been deployed to your AWS account, you are ready to start writing some CloudFormation
-templates for your services. Take a look at the [examples](./examples/) to see what's possible.
+templates for your services. Take a look at the [examples](./docs/examples.md) to see what's possible.
 
 ## Loose Ends
 

@@ -1,5 +1,5 @@
 IMAGE = ngmiller/fabrik:build
-GOPATH = /go/src/github.com/opolis/config
+GOPATH = /go/src/github.com/ngmiller/fabrik/cli/config
 
 RUN = docker run -it --rm \
 	  -v $(HOME)/.aws:/root/.aws \

@@ -58,7 +58,7 @@ The following is a list of files to crate, along with their description. For now
 in a directory at the root of your repo called `fabrik`. This may be configurable in the future, but this
 setup will always be supported.
 
-Concrete examples of these files can be found in [`examples`](../examples/).
+Concrete examples of these files can be found in [`examples`](examples.md).
 
 ### `fabrik/pipeline.json`
 
