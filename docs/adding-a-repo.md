@@ -41,7 +41,7 @@ Serverless: Removing old service versions...
 
 On the GitHub repo page, go to "Settings" > "Webhooks" > "Add webhook". Provide the API Gateway endpoint as the hook
 destination, the HMAC key set as a build system parameter during setup (`fabrik.github.hmac`),
-and select "Just the `push` event".
+and select "Just the `push` event". Be sure the content type is set to `application/json`.
 
 And that's it! Check out the status updates on each commit pushed to GitHub to track that commit's
 progress through the build system. But, first you need to create some files for Fabrik to use.

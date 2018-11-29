@@ -6,6 +6,8 @@ to [Adding a Repository](../docs/adding-a-repo.md) for a reference on each file.
 
 ### [Minimal Repository](https://github.com/ngmiller/fabrik-example-minimal)
 
-### Single Page WebApp (SPA)
+### [AWS VPC](https://github.com/ngmiller/fabrik-example-vpc)
 
 ### Severless Container
+
+### Single Page WebApp (SPA)

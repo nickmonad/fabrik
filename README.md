@@ -10,8 +10,14 @@ other deployments of the same service, and most importantly, *reliable*.
 
 Created with :heart: at [Opolis](https://opolis.co) in Colorado.
 
+Inspired by the ideas presented by [awesome-codepipeline-ci](https://github.com/nicolai86/awesome-codepipeline-ci)
+
 Please note these docs are still very much a work in progress. Let me know where there are gaps, or where
 more clarification is needed by opening an issue!
+
+## Overview
+
+TBD (new pipeline, per branch, etc)
 
 ## Getting Started
 
@@ -166,10 +172,24 @@ Yes and no. CloudFormation, CodeBuild, and CodePipeline provide the majority of 
 doesn't do itself, but there are certain properties I wanted my deployments to have, like unlimited isolated
 deployments, that I wasn't getting with those products on their own.
 
-As far as I can tell, CodePipeline only allows a user to configure a single
-source repository branch to be the target for processing, meaning that if I setup a CodePipeline instance to point
-at `master`, a push to `my-feature-branch` will not be processed. Fabrik fixes this by automating the provisioning
-of a new CodePipeline for each branch created, including `master`. Tagged builds reuse the same `production` pipeline.
+According to the [CodePipeline Concepts](https://docs.aws.amazon.com/codepipeline/latest/userguide/concepts.html) document,
+
+> Multiple revisions can be processed in the same pipeline, but **each stage can process only one revision at a time.**
+
+This means that even if we can push several branches/revisions through a single pipeline, these revisions
+cannot be processed in parallel, effectively putting a hard cap on your team's lifecycle throughput. Fabrik fixes this
+by automating the provisioning of a new CodePipeline for each branch created. The only pipelines that are reused
+are `staging` (for the `master` branch), and `production` (for tagged releases).
+
+So, hopefully CodePipeline will incorporate some kind of parallel pipeline processing for the same template
+in the near future, but until that happens, Fabrik will continue to fill in that gap.
+
+### Limitations
+
+* AWS [limits](https://docs.aws.amazon.com/codepipeline/latest/userguide/limits.html) the total number of CodePipeline
+instances to 300 in any given region. If you have hundreds of developers pushing multiple branches per day for testing,
+you may hit this limit. Ideally, Fabrik would utilize multiple regions at once, making this limit 1200 for all supported US
+and 1200 for all supported EU regions. Let's work together to figure out a solution!
 
 ### License
 
