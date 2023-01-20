@@ -1,3 +1,7 @@
+# ARCHIVED, NO LONGER IN DEVELOPMENT
+
+I wrote this a long time ago as I was beginning to explore how to manage infrastructure-as-code environments, particularly on AWS. A lot has changed since then and I would do things a lot differently now. For that reason, this repo is archived. Thanks for your interest!
+
 fabrik
 =====
 
